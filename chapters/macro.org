@@ -1,0 +1,680 @@
+* Macro
+
+The macro in =C= is a super powerful weapon that helps you to generate the most flexible source code.
+
+** How to only run the preprocessor stage
+
+You can run =CC= with the =-E= flag to generate the source code that only apply the preprocessor stage before compiling it.
+
+#+BEGIN_SRC bash
+  CC -E src/utils/vec.c | bat
+  clang -E src/utils/vec.c | bat
+#+END_SRC
+
+
+** Comment and empty line in macro
+
+You only can use =/* */= comment in macro body, ~//~ won't work!!!
+
+If you want an empty line, just add a ~\~ (multi line character) there.
+
+#+BEGIN_SRC c
+  #define MY_MACRO(PARAM1) \
+      /* Here is the comment line 1 */ \
+      /* Here is the comment line 2 */ \
+      /* Follow by a empty line */\
+      \
+      printf("Just a macro sample.")
+#+END_SRC
+
+
+** String in macro
+
+When using a macro argument starts with ~#~ (in the macro body), it treats as a string. That's why the ~#FORMAT_TYPE~ (in the following sample) will become a part of the ~printf~ format string!!!
+
+#+BEGIN_SRC c
+  #define MACRO_PARAM_AS_STRING(INTEGER, FORMAT_TYPE) \
+      printf("Here is integer you provied: " #FORMAT_TYPE, INTEGER)
+
+  int main() {
+      MACRO_PARAM_AS_STRING(888, %u);
+  }
+#+END_SRC
+
+The above code will expand as the following:
+
+#+BEGIN_SRC c
+  int main() {
+      printf("Here is integer you provied: " "%u", 888);
+  }
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  Here is integer you provied: 888
+#+END_SRC
+
+
+** Expression in macro
+
+If you want the macro parameter support passing in an expression, then you should wrap the parameter with ~()~ (in the macro body).
+
+When you want to put all code expanded by a macro into a code block scope, wrap your code inside ~({})~.
+
+Here is the sample:
+
+#+BEGIN_SRC c
+  #include <stdio.h>
+  #include <time.h>
+
+  #define GET_AND_PRINT_CURRENT_TIME(PRINT_PREFIX, USE_CUSTOM_FORMAT)          \
+      ({                                                                       \
+          time_t t = time(NULL);                                               \
+          if (USE_CUSTOM_FORMAT) {                                             \
+              struct tm tm = *localtime(&t);                                   \
+              printf("\n>>> " #PRINT_PREFIX " %d-%02d-%02d %02d:%02d:%02d\n",  \
+                     tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, \
+                     tm.tm_min, tm.tm_sec);                                    \
+          } else {                                                             \
+              printf("\n>>> " #PRINT_PREFIX " %s", ctime(&t));                 \
+          }                                                                    \
+      })
+
+  //
+  int main() {
+      GET_AND_PRINT_CURRENT_TIME("The current time in custom format: ", 2 > 1);
+      GET_AND_PRINT_CURRENT_TIME("The current time: ", 1 > 2);
+  }
+#+END_SRC
+
+
+** Use =_VA_ARGS_= macro to pass =...= into another macro
+
+#+BEGIN_SRC c
+  /**
+   * Log
+   */
+  void __log__(LogLevel log_level,
+               const char *module_name,
+               const char *function_name,
+               const char *format_str,
+               ...);
+
+  /**
+   * Debug log
+   */
+  #define DEBUG_LOG(MODULE_NAME, FUNCTION_NAME, format_str, ...) \
+      __log__(LL_DEBUG, #MODULE_NAME, #FUNCTION_NAME, format_str, __VA_ARGS__)
+#+END_SRC
+
+
+** How to write a macro that includes =#ifdef=
+
+The answer is =NO, you can't do that!!!= and you have to define 2 macros with the same name and wrap them into a #ifdef #else #endif block like below:
+
+#+BEGIN_SRC c
+  #ifdef PRINT_VEC_DEBUG_LOG
+      #define ASSIGN_PUSH_VEC_ELEMENT(PTR_TYPE)                              \
+          PTR_TYPE *next_ptr = (self->len == 1)                              \
+                                   ? (PTR_TYPE *)self->data                  \
+                                   : (PTR_TYPE *)self->data + self->len - 1; \
+          printf("\n>>> " #PTR_TYPE " >>> self->data: %p, next_ptr: %p",     \
+                 self->data,                                                 \
+                 next_ptr);                                                  \
+          *next_ptr = *(PTR_TYPE *)value;
+  #else
+      #define ASSIGN_PUSH_VEC_ELEMENT(PTR_TYPE)                              \
+          PTR_TYPE *next_ptr = (self->len == 1)                              \
+                                   ? (PTR_TYPE *)self->data                  \
+                                   : (PTR_TYPE *)self->data + self->len - 1; \
+          *next_ptr = *(PTR_TYPE *)value;
+  #endif
+#+END_SRC
+
+
+** Auto type infer in macro
+
+[[https://gcc.gnu.org/onlinedocs/gcc/Typeof.html][Official doc]]
+
+Auto type infer supports by ~typeof~ and ~__auto_type~
+
+#+BEGIN_SRC c
+  #define SHOW_TYPE_OF_VAR(A, B, C, D, E, F) \
+      ({                                     \
+          typeof(A) a = (A);                 \
+          typeof(B) b = (B);                 \
+          typeof(C) c = (C);                 \
+          typeof(D) d = (D);                 \
+          typeof(E) e = (E);                 \
+          typeof(F) f = (F);                 \
+      })
+
+  #define SHOW_TYPE_OF_VAR_2(A, B, C, D, E, F) \
+      ({                                       \
+          __auto_type a = (A);                 \
+          __auto_type b = (B);                 \
+          __auto_type c = (C);                 \
+          __auto_type d = (D);                 \
+          __auto_type e = (E);                 \
+          __auto_type f = (F);                 \
+      })
+
+  //
+  int main() {
+      printf("\n>>> [Auto type infer in macro]\n");
+
+      SHOW_TYPE_OF_VAR(0xFF, 256, -100, 3.5, -4.5, 100000);
+      SHOW_TYPE_OF_VAR_2(0xFF, 256, -100, 3.5, -4.5, 100000);
+  }
+#+END_SRC
+
+
+** Useful macro: Get back the data type from a variable
+
+That's the ~_Generic~ selection at compile time, doc is [[https://en.cppreference.com/w/c/language/generic][here]]
+
+#+BEGIN_SRC c
+  #include <stdbool.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  #define TYPE_NAME(x) \
+      _Generic((x),                                                   \
+      _Bool: "_Bool",                                                 \
+      unsigned char: "unsigned char",                                 \
+      char: "char",                                                   \
+      signed char: "signed char",                                     \
+      short int: "short int",                                         \
+      unsigned short int: "unsigned short int",                       \
+      int: "int",                                                     \
+      unsigned int: "unsigned int",                                   \
+      long int: "long int",                                           \
+      unsigned long int: "unsigned long int",                         \
+      long long int: "long long int",                                 \
+      unsigned long long int: "unsigned long long int",               \
+      float: "float",                                                 \
+      double: "double",                                               \
+      long double: "long double",                                     \
+      char *: "pointer to char",                                      \
+      void *: "pointer to void",                                      \
+      _Bool *: "pointer to Bool",                                     \
+      unsigned char *: "pointer to unsigned char",                    \
+      signed char *: "pointer to signed char",                        \
+      short int *: "pointer to short int",                            \
+      unsigned short int *: "pointer to unsigned short int",          \
+      int *: "pointer to int",                                        \
+      unsigned int *: "pointer to unsigned int",                      \
+      long int *: "pointer to long int",                              \
+      unsigned long int *: "pointer to unsigned long int",            \
+      long long int *: "pointer to long long int",                    \
+      unsigned long long int *: "pointer to unsigned long long int",  \
+      float *: "pointer to float",                                    \
+      double *: "pointer to double",                                  \
+      long double *: "pointer to long double",                        \
+      default: "other")
+
+  //
+  //
+  //
+  int main() {
+      printf("\n>>> [ Get data type from variable ]");
+
+      uint8_t u8_v = 100;
+      uint16_t u16_v = 100;
+      uint32_t u32_v = 100;
+      uint64_t u64_v = 100;
+      int8_t i8_v = 100;
+      int16_t i16_v = 100;
+      int32_t i32_v = 100;
+      int64_t i64_v = 100;
+      size_t sizet_v = 100;
+      _Bool _Bool_v = true;
+      unsigned char unsigned_char_v = 0x0A;
+      char char_v = 'a';
+      signed char signed_char_v = 'a';
+      short int short_int_v = 100;
+      unsigned short int unsigned_short_int_v = 100;
+      int int_v = 100;
+      unsigned int unsigned_int_v = 100;
+      long int long_int_v = 100;
+      unsigned long int unsigned_long_int_v = 100;
+      long long int long_long_int_v = 100;
+      unsigned long long int unsigned_long_long_int_v = 100;
+      float float_v = 1.0;
+      double double_v = 1.0;
+      long double long_double_v = 1.0;
+      char *pointer_to_char_v = NULL;
+      void *pointer_to_void_v = NULL;
+      _Bool *pointer_to_Bool_v = NULL;
+      unsigned char *pointer_to_unsigned_char_v = NULL;
+      signed char *pointer_to_signed_char_v = NULL;
+      short int *pointer_to_short_int_v = NULL;
+      unsigned short int *pointer_to_unsigned_short_int_v = NULL;
+      int *pointer_to_int_v = NULL;
+      unsigned int *pointer_to_unsigned_int_v = NULL;
+      long int *pointer_to_long_int_v = NULL;
+      unsigned long int *pointer_to_unsigned_long_int_v = NULL;
+      long long int *pointer_to_long_long_int_v = NULL;
+      unsigned long long int *pointer_to_unsigned_long_long_int_v = NULL;
+      float *pointer_to_float_v = NULL;
+      double *pointer_to_double_v = NULL;
+      long double *pointer_to_long_double_v = NULL;
+
+      printf("\n>>> Type of 'u8_v' is: %s", TYPE_NAME(u8_v));
+      printf("\n>>> Type of 'u16_v' is: %s", TYPE_NAME(u16_v));
+      printf("\n>>> Type of 'u32_v' is: %s", TYPE_NAME(u32_v));
+      printf("\n>>> Type of 'u64_v' is: %s", TYPE_NAME(u64_v));
+      printf("\n>>> Type of 'i8_v' is: %s", TYPE_NAME(i8_v));
+      printf("\n>>> Type of 'i16_v' is: %s", TYPE_NAME(i16_v));
+      printf("\n>>> Type of 'i32_v' is: %s", TYPE_NAME(i32_v));
+      printf("\n>>> Type of 'i64_v' is: %s", TYPE_NAME(i64_v));
+      printf("\n>>> Type of 'usizet_v' is: %s", TYPE_NAME(sizet_v));
+      printf("\n>>> Type of '_Bool_v' is: %s", TYPE_NAME(_Bool_v));
+      printf("\n>>> Type of 'unsigned_char_v': %s", TYPE_NAME(unsigned_char_v));
+      printf("\n>>> Type of 'char_v': %s", TYPE_NAME(char_v));
+      printf("\n>>> Type of 'signed_char_v': %s", TYPE_NAME(signed_char_v));
+      printf("\n>>> Type of 'short_int_v': %s", TYPE_NAME(short_int_v));
+      printf("\n>>> Type of 'unsigned_short_int_v': %s",
+             TYPE_NAME(unsigned_short_int_v));
+      printf("\n>>> Type of 'int_v': %s", TYPE_NAME(int_v));
+      printf("\n>>> Type of 'unsigned_int_v': %s", TYPE_NAME(unsigned_int_v));
+      printf("\n>>> Type of 'long_int_v': %s", TYPE_NAME(long_int_v));
+      printf("\n>>> Type of 'unsigned_long_int_v': %s",
+             TYPE_NAME(unsigned_long_int_v));
+      printf("\n>>> Type of 'long_long_int_v': %s", TYPE_NAME(long_long_int_v));
+      printf("\n>>> Type of 'unsigned_long_long_int_v': %s",
+             TYPE_NAME(unsigned_long_long_int_v));
+      printf("\n>>> Type of 'float_v': %s", TYPE_NAME(float_v));
+      printf("\n>>> Type of 'double_v': %s", TYPE_NAME(double_v));
+      printf("\n>>> Type of 'long_double_v': %s", TYPE_NAME(long_double_v));
+      printf("\n>>> Type of '*pointer_to_char_v': %s",
+             TYPE_NAME(pointer_to_char_v));
+      printf("\n>>> Type of '*pointer_to_void_v': %s",
+             TYPE_NAME(pointer_to_void_v));
+      printf("\n>>> Type of '*pointer_to_Bool_v': %s",
+             TYPE_NAME(pointer_to_Bool_v));
+      printf("\n>>> Type of '*pointer_to_unsigned_char_v': %s",
+             TYPE_NAME(pointer_to_unsigned_char_v));
+      printf("\n>>> Type of '*pointer_to_signed_char_v': %s",
+             TYPE_NAME(pointer_to_signed_char_v));
+      printf("\n>>> Type of '*pointer_to_short_int_v': %s",
+             TYPE_NAME(pointer_to_short_int_v));
+      printf("\n>>> Type of '*pointer_to_unsigned_short_int_v': %s",
+             TYPE_NAME(pointer_to_unsigned_short_int_v));
+      printf("\n>>> Type of '*pointer_to_int_v': %s",
+             TYPE_NAME(pointer_to_int_v));
+      printf("\n>>> Type of '*pointer_to_unsigned_int_v': %s",
+             TYPE_NAME(pointer_to_unsigned_int_v));
+      printf("\n>>> Type of '*pointer_to_long_int_v': %s",
+             TYPE_NAME(pointer_to_long_int_v));
+      printf("\n>>> Type of '*pointer_to_unsigned_long_int_v': %s",
+             TYPE_NAME(pointer_to_unsigned_long_int_v));
+      printf("\n>>> Type of '*pointer_to_long_long_int_v': %s",
+             TYPE_NAME(pointer_to_long_long_int_v));
+      printf("\n>>> Type of '*pointer_to_unsigned_long_long_int_v': %s",
+             TYPE_NAME(pointer_to_unsigned_long_long_int_v));
+      printf("\n>>> Type of '*pointer_to_float_v': %s",
+             TYPE_NAME(*pointer_to_float_v));
+      printf("\n>>> Type of '*pointer_to_double_v': %s",
+             TYPE_NAME(pointer_to_double_v));
+      printf("\n>>> Type of '*pointer_to_long_double_v': %s",
+             TYPE_NAME(pointer_to_long_double_v));
+  }
+
+  // >>> [ Get data type from variable ]
+  // >>> Type of 'u8_v' is: unsigned char
+  // >>> Type of 'u16_v' is: unsigned short int
+  // >>> Type of 'u32_v' is: unsigned int
+  // >>> Type of 'u64_v' is: unsigned long long int
+  // >>> Type of 'i8_v' is: signed char
+  // >>> Type of 'i16_v' is: short int
+  // >>> Type of 'i32_v' is: int
+  // >>> Type of 'i64_v' is: long long int
+  // >>> Type of 'usizet_v' is: unsigned long int
+  // >>> Type of '_Bool_v' is: _Bool
+  // >>> Type of 'unsigned_char_v': unsigned char
+  // >>> Type of 'char_v': char
+  // >>> Type of 'signed_char_v': signed char
+  // >>> Type of 'short_int_v': short int
+  // >>> Type of 'unsigned_short_int_v': unsigned short int
+  // >>> Type of 'int_v': int
+  // >>> Type of 'unsigned_int_v': unsigned int
+  // >>> Type of 'long_int_v': long int
+  // >>> Type of 'unsigned_long_int_v': unsigned long int
+  // >>> Type of 'long_long_int_v': long long int
+  // >>> Type of 'unsigned_long_long_int_v': unsigned long long int
+  // >>> Type of 'float_v': float
+  // >>> Type of 'double_v': double
+  // >>> Type of 'long_double_v': long double
+  // >>> Type of '*pointer_to_char_v': pointer to char
+  // >>> Type of '*pointer_to_void_v': pointer to void
+  // >>> Type of '*pointer_to_Bool_v': pointer to Bool
+  // >>> Type of '*pointer_to_unsigned_char_v': pointer to unsigned char
+  // >>> Type of '*pointer_to_signed_char_v': pointer to signed char
+  // >>> Type of '*pointer_to_short_int_v': pointer to short int
+  // >>> Type of '*pointer_to_unsigned_short_int_v': pointer to unsigned short int
+  // >>> Type of '*pointer_to_int_v': pointer to int
+  // >>> Type of '*pointer_to_unsigned_int_v': pointer to unsigned int
+  // >>> Type of '*pointer_to_long_int_v': pointer to long int
+  // >>> Type of '*pointer_to_unsigned_long_int_v': pointer to unsigned long int
+  // >>> Type of '*pointer_to_long_long_int_v': pointer to long long int
+  // >>> Type of '*pointer_to_unsigned_long_long_int_v': pointer to unsigned long long int
+  // >>> Type of '*pointer_to_float_v': float
+  // >>> Type of '*pointer_to_double_v': pointer to double
+  // >>> Type of '*pointer_to_long_double_v': pointer to long double
+#+END_SRC
+
+
+** Useful macro: Is it the same type between 2 variables/values
+
+#+BEGIN_SRC c
+  //
+  //
+  //
+  #define IS_IT_THE_SAME_TYPE(a, b)                                            \
+      ({                                                                       \
+          char _a_type[50] = TYPE_NAME((a));                                   \
+          char _b_type[50] = TYPE_NAME((b));                                   \
+          _Bool is_same_str_non_case_sensitive = strcasecmp(_a_type, _b_type); \
+          (is_same_str_non_case_sensitive == 0);                               \
+      })
+
+  int main() {
+      /* usize *aaa = NULL; */
+      /* size_t *bbb = NULL; */
+      /* char aaa[10] = "asdfasdf"; */
+      /* char bbb[20] = "AAAA"; */
+      uint8_t aaa[5] = {1, 2, 3, 4, 5};
+      uint8_t bbb[3] = {9, 10, 11};
+      printf("\n>>> aaa type is: %s",TYPE_NAME(aaa));
+      printf("\n>>> bbb type is: %s",TYPE_NAME(bbb));
+
+      _Bool is_same_type_between_a_and_b = IS_IT_THE_SAME_TYPE(aaa, bbb);
+
+      if (is_same_type_between_a_and_b) {
+          printf("\n>>>> Yes, a and b ARE the same type.");
+      } else {
+          printf("\n>>>> Yes, a and b ARE NOT the same type.");
+      }
+
+      return 0;
+  }
+
+  // >>> aaa type is: pointer to unsigned char
+  // >>> bbb type is: pointer to unsigned char
+  // >>>> Yes, a and b ARE the same type.⏎
+#+END_SRC
+
+
+
+** Generic implementation by using macro
+
+Let's see how =C= deals with generic:)
+
+The ~Result~ type here is just trying to show you how the magic word =generic= works under the hood.
+
+Let's take the =Rust= generic type ~Result<T,E>~ as an example.
+
+Suppose you have the following rust code:
+
+#+BEGIN_SRC rust
+  pub struct MyResult<T, E> {
+      success: bool,
+      ok_value: T,
+      err_value: E,
+  }
+
+  fn main() {
+      let result_1: MyResult<usize, u8> = MyResult::<usize, u8> {
+           success: true,
+           ok_value: 100,
+           err_value: 0
+      };
+
+      let result_2: MyResult<f32, u8> = MyResult::<f32, u8> {
+           success: true,
+           ok_value: 1.0f32,
+           err_value: 0
+      };
+  }
+#+END_SRC
+
+When Rust compiles this code, it performs =monomorphization=. During the process, the =rustc= read the values that have need used in ~MyResult<T,E>~, and produce 2 different types wit the concrete types like below:
+
+The sample code comes from [[https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics][Generic Data Types]] in the Rust official guide (=The Rust Programming Language=):
+
+#+BEGIN_SRC rust
+  // pseudo code
+
+  pub struct MyResult_usize_u8{
+      success: bool,
+      ok_value: usize,
+      err_value: u8,
+  }
+
+  pub struct MyResult_f32_u8 {
+      success: bool,
+      ok_value: f32,
+      err_value: u8,
+  }
+#+END_SRC
+
+So, that's =nearly duplicated code=? YES, you're right and that's how it works:)
+
+In =C=, you can do the same thing with the =magical= macro:)
+
+
+
+Because the =magical= thing is all about the =nearly duplicated code=, that means you can't use the regular =include guard= pattern like below to prevent the generic implementation =.h= file from being included more than once:
+
+#+BEGIN_SRC c
+  #ifndef __RESULT_H__
+  #define __RESULT_H__
+
+  //... Your code inside include guard
+
+  #endif
+#+END_SRC
+
+
+So, suppose that you want to implement the same ~MyResult~ type above in the generic way in =C=. That means you need 3 generic types:
+
+- ~MY_RESULT_TYPE~ as the ~typedef struct~ type name
+- ~MY_RESULT_SUCCESS_TYPE~ as the ~ok~ data type
+- ~MY_RESULT_ERROR_TYPE~ as the ~err~ data type
+
+
+Let's do it:
+
+#+BEGIN_SRC c
+  //
+  // Throw error if the caller doesn't define the following `type name` which
+  // uses to generate the concrete type struct definition
+  //
+  #if !defined(MY_RESULT_TYPE) || !defined(MY_RESULT_SUCCESS_TYPE) || \
+      !defined(MY_RESULT_ERROR_TYPE)
+  #error Missing MY_RESULT_TYPE or MY_RESULT_SUCCESS_TYPE or MY_RESULT_ERROR_TYPE definition
+  #endif
+
+  //
+  // Define macros that uses to create concrete type struct definition
+  //
+  #define MY_RESULT_CONCAT(tag, method) tag##_##method
+  #define MY_RESULT_METHOD2(tag, method) MY_RESULT_CONCAT(tag, method)
+  #define MY_RESULT_METHOD(method) MY_RESULT_METHOD2(MY_RESULT_TYPE, method)
+
+  //
+  // Generic (result type) struct
+  //
+  typedef struct {
+      _Bool success;
+      MY_RESULT_SUCCESS_TYPE *ok;
+      MY_RESULT_ERROR_TYPE *err;
+  } MY_RESULT_TYPE;
+
+  //
+  // Similar to `Result::Ok(T)` and allocate on the heap
+  //
+  MY_RESULT_TYPE *MY_RESULT_METHOD(Ok)(MY_RESULT_SUCCESS_TYPE *ok) {
+      MY_RESULT_TYPE *r = malloc(sizeof(MY_RESULT_TYPE));
+      r->success = true;
+      r->ok = ok;
+      r->err = NULL;
+
+      return r;
+  }
+
+  //
+  // Similar to `Result::Err(T)` and allocate on the heap
+  //
+  MY_RESULT_TYPE *MY_RESULT_METHOD(Err)(MY_RESULT_ERROR_TYPE *err) {
+      MY_RESULT_TYPE *r = malloc(sizeof(MY_RESULT_TYPE));
+      r->success = false;
+      r->ok = NULL;
+      r->err = err;
+
+      return r;
+  }
+
+  #undef MY_RESULT_TYPE
+  #undef MY_RESULT_SUCCESS_TYPE
+  #undef MY_RESULT_ERROR_TYPE
+  #undef MY_RESULT_CONCAT
+  #undef MY_RESULT_METHOD2
+  #undef MY_RESULT_METHOD
+#+END_SRC
+
+
+Ok, let's explain step-by-step:
+
+*** Check the caller (=includer=) to see whether it defines the required type macros or not:
+
+#+BEGIN_SRC c
+  //
+  // Throw error if the caller doesn't define the following `type name` which
+  // uses to generate the concrete type struct definition
+  //
+  #if !defined(MY_RESULT_TYPE) || !defined(MY_RESULT_SUCCESS_TYPE) || \
+          !defined(MY_RESULT_ERROR_TYPE)
+  #error Missing MY_RESULT_TYPE or MY_RESULT_SUCCESS_TYPE or MY_RESULT_ERROR_TYPE definition
+  #endif
+#+END_SRC
+
+The directive ~#error~ causes the preprocessor to report a fatal error, then you can see the error when you compile the project.
+
+
+*** Define the helper macro to define ~XX_YY~ method function name
+
+#+BEGIN_SRC c
+  //
+  // Define macros that uses to create concrete type struct definition
+  //
+  #define MY_RESULT_CONCAT(struct_name, method_name) struct_name##_##method_name
+  #define CREATE_STRUCT_METHOD_HELPER(struct_name, method_name) MY_RESULT_CONCAT(struct_name, method_name)
+  #define CREATE_STRUCT_METHOD(method_name) CREATE_STRUCT_METHOD_HELPER(MY_RESULT_TYPE, method_name)
+#+END_SRC
+
+Suppose the caller (=includer=) source file has the following macros:
+
+#+BEGIN_SRC c
+    #define MY_RESULT_TYPE EndpointApiResult
+#+END_SRC
+
+So, the ~CREATE_STRUCT_METHOD(Ok)~ macro call will be expanded as ~*EndpointApiResult_Ok~. That's the way to generate the generic struct method name:)
+
+
+*** The final important part is to undefine the caller (=includer=)'s macros
+
+#+BEGIN_SRC c
+  #undef MY_RESULT_TYPE
+  #undef MY_RESULT_SUCCESS_TYPE
+  #undef MY_RESULT_ERROR_TYPE
+  #undef MY_RESULT_CONCAT
+  #undef CREATE_STRUCT_METHOD_HELPER
+  #undef CREATE_STRUCT_METHOD
+#+END_SRC
+
+
+*** So, from now on, every source code is able to include this =.h= to create their own concrete type version of ~MyResult~ struct and method.
+
+Here is the example to show it:
+
+#+BEGIN_SRC c
+  #define MY_RESULT_TYPE EndpointApiResult
+  #define MY_RESULT_SUCCESS_TYPE char
+  #define MY_RESULT_ERROR_TYPE uint16_t
+
+  #include "utils/result.h"
+
+  char *success_result = "Got something back:)";
+  uint16_t fail_result = 404;
+
+  //
+  EndpointApiResult *simulate_call_api_success(_Bool simulate_success) {
+      EndpointApiResult *result = (simulate_success)
+                                      ? EndpointApiResult_Ok(success_result)
+                                      : EndpointApiResult_Err(&fail_result);
+
+      return result;
+  }
+#+END_SRC
+
+As you can see above, a few things to pay attention to :
+
+- Those 3 ~#define~ should be written before the ~#include "utils/result.h"~, as preprocessor handle source file from top to bottom.
+
+- Before the ~#include "utils/result.h"~ be evaluated, the ~EndpointApiResult~ doesn't exists. It only exists after the preprocessor finishs:
+
+    You can run the =CC -E src/result_demo.c= to see the preprocessor result:
+
+    #+BEGIN_SRC c
+        typedef struct {
+            _Bool success;
+            char *ok;
+            uint16_t *err;
+        } EndpointApiResult;
+
+        EndpointApiResult *EndpointApiResult_Ok(char *ok) {
+            EndpointApiResult *r = malloc(sizeof(EndpointApiResult));
+            r->success = 1;
+            r->ok = ok;
+            r->err = ((void*)0);
+
+            return r;
+        }
+
+        EndpointApiResult *EndpointApiResult_Err(uint16_t *err) {
+            EndpointApiResult *r = malloc(sizeof(EndpointApiResult));
+            r->success = 0;
+            r->ok = ((void*)0);
+            r->err = err;
+
+            return r;
+        }
+    #+END_SRC
+
+
+That's the way how =C= deals with generic:)
+
+
+For more details, open ~src/utils/result.h~ and ~src/result_demo.c~ to have a look and run the following command to give it a try:
+
+#+BEGIN_SRC bash
+  make c_demo_result && ./c_demo_result
+
+  # >>> [ Result type demo ]
+  # Result {
+  #         success: true
+  #         ok: Got something back:)
+  #         err: NULL
+  # }
+  # 
+  # Result {
+  #         success: false
+  #         ok: NULL
+  #         ok: 404
+  # }
+#+END_SRC
+
+

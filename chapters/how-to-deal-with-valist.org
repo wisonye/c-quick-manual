@@ -1,0 +1,143 @@
+* How to deal with flexible parameter list: =va_list= (Variadic Argument List)
+
+=...= or =va_list= is super useful in =C=, it gives you the ability to define a flexible parameter list function.
+
+Here is how it works:
+
+- =va_list= declares a variadic argument list instance (but doesn't initial yet)
+
+  #+BEGIN_SRC c
+    va_list args
+  #+END_SRC
+
+
+- =va_start= initializes the =va_list= with the first argument
+
+  #+BEGIN_SRC c
+    va_list args
+    va_start(args, FIRST_ARGUMENT_NAME_HERE)
+  #+END_SRC
+
+
+- =va_arg= gives you back the next argument
+
+    As =va_arg= doesn't know how many bytes the argument is and how to stop, that's why you need to provide the =T= data type to help it read the next argument.
+
+    #+BEGIN_SRC c
+      va_list args
+      va_start(args, FIRST_ARGUMENT_NAME_HERE)
+      var_arg(args, T)
+    #+END_SRC
+
+
+- =va_end= end the =va_list= that you have to call
+
+  #+BEGIN_SRC c
+    va_list args
+    va_start(args, FIRST_ARGUMENT_NAME_HERE)
+    va_arg(args, T)
+    va_end(args)
+  #+END_SRC
+
+
+There are 2 major forms to use =...=
+
+** First argument is the total number of the rest arguments
+
+#+BEGIN_SRC c
+  #include <stdio.h>
+  #include <stdarg.h>
+
+  int add_numbers(int rest_param_count, ...) {
+      int sum = 0;
+
+          //
+      // Uninitialized `va_list` instance
+          //
+      va_list args;
+
+          //
+      // Init the `va_list` instance with the first parameter
+          //
+      va_start(args, rest_param_count);
+
+          //
+      // Loop the rest params
+          //
+      for (int i = 0; i < rest_param_count; i++) {
+          sum += va_arg(args, int);
+      }
+
+          //
+      // Done with using `va_list` instance
+          //
+      va_end(args);
+      return sum;
+  }
+
+  int main(void) {
+      printf("add_numbers result: %d\n", add_numbers(5, 1, 1, 1, 1));
+  }
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  add_numbers result: 4
+#+END_SRC
+
+
+So, if you pass the wrong ~rest_param_count~ or passing the wrong number of the rest parameters, result will be undefined behaviours!!!
+
+
+** NULL ended style
+
+In this way, you don't need to pass the total number of rest params as the first parameter anymore:
+
+#+BEGIN_SRC c
+  #include <stdio.h>
+  #include <stdarg.h>
+
+  int add_numbers_2(int first_number, ...) {
+      int sum = first_number;
+
+      //
+      // Uninitialized `va_list` instance
+      //
+      va_list args;
+
+      //
+      // Init the `va_list` instance with the first parameter
+      //
+      va_start(args, first_number);
+
+      //
+      // Keep looping the rest until it hits `NULL` (0)
+      //
+      int next_number = va_arg(args, int);
+      while (next_number != 0) {
+          sum += next_number;
+          next_number = va_arg(args, int);
+      }
+
+      //
+      // Done with using `va_list` instance
+      //
+      va_end(args);
+      return sum;
+  }
+
+  int main(void) {
+      printf("add_numbers_2 result: %d\n", add_numbers_2(1, 1, 1, 1, NULL));
+
+      //
+      // This will end up the result is `2` instead of `4`, as `0` means
+      // `NULL` in C!!!
+      //
+      // printf("add_numbers_2 result: %d\n", add_numbers_2(1, 1, 0, 1, NULL));
+  }
+#+END_SRC
+
+But it messes up if you have a =0= in your parameters before ~NULL~.
+
