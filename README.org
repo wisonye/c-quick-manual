@@ -5,7 +5,10 @@
 *** [[file:chapters/pointer-arithmetic.org][Pointer arithmetic]]
 *** [[file:chapters/pointer-and-array.org][The relationship between Pointer and Array]]
 *** [[file:chapters/c-pointer-tricky-things.org][The tricky things in C Pointer: constants pointer differences]]
+** [[file:chapters/string.org][Null terminated string]]
 ** [[file:chapters/macro.org][Macro]]
 ** =cmake= project template
 ** How to
 *** [[file:chapters/how-to-deal-with-valist.org][How to deal with flexible parameter list: va_list]]
+*** [[file:chapters/how-to-format-fixed-width-hex.org][How to print fixed width HEX]]
+*** [[file:chapters/how-to-format-string.org][How to format string (sequence of chars)]]

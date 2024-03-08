@@ -1,0 +1,30 @@
+* Null terminated string
+
+C =string= actually just a sequence of characters.
+
+#+BEGIN_SRC c
+  char my_name[] = "wisonye";
+#+END_SRC
+
+
+~sizeof(my_name)~ is =8=, as it includes the final =\0= null-terminated character!!!
+
+~strlen(my_name)~ is =7=, as it doesn't count the final =\0= null-terminated character!!!
+
+But you shouldn't use ~sizeof~ on a ~char *~ (pointer, NOT ~char []~), as ou always get back =4= (4bytes on 32bit) or =8= (8bytes on 64bit):
+
+#+BEGIN_SRC c
+  char *my_name= "wisonye12345";
+
+  printf("\nsizeof(my_name): %lu", sizeof(my_name));
+  printf("\nstrlen(my_name): %lu", strlen(my_name));
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  sizeof(my_name): 8
+  strlen(my_name): 12
+#+END_SRC
+
+
