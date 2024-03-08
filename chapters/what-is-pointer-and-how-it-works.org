@@ -1,0 +1,65 @@
+* What is a pointer and how it works
+
+What you should know about a =Pointer= is:
+
+- It's just an unsigned integer, that's why you can convert an unsigned integer as a pointer.
+
+- That said the value of a pointer variable is an unsigned interger.
+
+- The meaning of pointer value (unsigned integer) is the memory address/location, that's why you need to =dereference= to get back the data that the pointer points to (as pointer just store the data memory address/location, NOT the data itself)!!!
+
+
+#+BEGIN_SRC c
+  uint16_t data = 0xAA;
+
+  //
+  // `&` means `address of` (get back the address of xxx)
+  // Let's suppose that the `data` variable address is
+  // `0x0100000000000000`
+  //
+  // Then the `ptr`'s value is `0x100`, just an unsigned integer
+  // and it points to the memory location where the address is
+  // `0x0100000000000000`
+  //
+  uint16_t *ptr = &data;
+#+END_SRC
+
+Here is the stack memory after the above code runs:
+
+         | Memory Address     | variable | value                                   |
+         |--------------------+----------+-----------------------------------------|
+ /-----> | 0x0100000000000000 | data     | =0xAA 0x00=                               |
+ |       | 0x0100000000000002 | ptr      | 0x10 0x00 0x00 0x00 0x00 0x00 0x00 0x00 |
+ |                              ---
+ |                               |
+ |                               |
+ |         points to             |
+ \-------------------------------/
+  
+
+So, let's deference the ~ptr~ and set it's value to ~0xBB~:
+
+#+BEGIN_SRC c
+  //
+  // `*`: means get back the memory/value from the given address
+  //
+  // `*ptr` means `*0x0100000000000000`: get back the memory value from the given
+  //                                     address
+  //
+  // `*ptr =` means `*0x0100000000000000 =`: get back the memory from the given
+  //                                         address and assign new value (overwrite) //                                         to that memory chunk
+  //
+  *ptr = 0xBB; // uint16_t (2 bytes)
+#+END_SRC
+
+After the code above runs, memory looks like this:
+
+         | Memory Address     | variable | value                                   |
+         |--------------------+----------+-----------------------------------------|
+ /-----> | 0x0100000000000000 | data     | ~0xBB 0x00~                               |
+ |       | 0x0100000000000002 | ptr      | 0x10 0x00 0x00 0x00 0x00 0x00 0x00 0x00 |
+ |                              ---
+ |                               |
+ |                               |
+ |         points to             |
+ \-------------------------------/

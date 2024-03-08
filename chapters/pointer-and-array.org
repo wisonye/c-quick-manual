@@ -1,0 +1,130 @@
+* The relationship between =Pointer= and =Array=
+
+Actually, =pointer= is just like an =array= in the other form, the =C= design assumes that you use a =pointer= like an =array=.
+
+That's why the following code works:
+
+#+BEGIN_SRC c
+  #include <inttypes.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  typedef uint64_t usize;
+  typedef uint16_t u16;
+
+  u16 temp_arr[] = {1, 2, 3, 4, 5};
+
+  //
+  // `sizeof` is an operator, NOT a function!!!
+  //
+  usize arr_len = sizeof(temp_arr) / sizeof(temp_arr[0]);
+
+  //
+  // Use `pointer` to print the loop
+  //
+  u16 *loop_ptr = temp_arr;
+  for (usize index = 0; index < arr_len; index++) {
+      printf("\n>>> (pointer_in_arr - loop 2) - %p: %" PRIu16,
+             (void *)(loop_ptr + index),
+             ,*(loop_ptr + index));
+  }
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> (pointer_in_arr - loop 2) - 0x820e04418: 1
+  >>> (pointer_in_arr - loop 2) - 0x820e0441a: 2
+  >>> (pointer_in_arr - loop 2) - 0x820e0441c: 3
+  >>> (pointer_in_arr - loop 2) - 0x820e0441e: 4
+  >>> (pointer_in_arr - loop 2) - 0x820e04420: 5
+#+END_SRC
+
+
+You should found a fews things from the above code:
+
+- ~loop_ptr~ is a =pointer to u16= type
+
+- ~loop_ptr + X~:
+
+    It's saying: add/move the pointer address to =X unit of pointed type= from the current position (start from =0x820e04418= based on the above print out sample).
+
+    So, here is the pseudo formula: ~ptr + x~ => ~ptr + x * sizeof(POINTER_TYPE)~
+
+    That's why ~loop_ptr + 1~ -> ~loop_ptr + 1 * sizeof(u16)~, and it actually moved 2 bytes (=0x820e04418 + 2=), as the pointer points to type ~u16~!!!
+
+
+For the ~temp_arr~ variable, actually the compiler treats it as =a pointer that points to the first element of the stack allocated array=:
+
+#+BEGIN_SRC c
+  //
+  // `temp_arr` means `&temp_arr[0]` (address of the first element of `temp_arr`)
+  //
+  u16 temp_arr[] = {1, 2, 3, 4, 5};
+#+END_SRC
+
+and you can use that ~temp_arr~ as just a pointer.
+
+That's why the following code also works:
+
+#+BEGIN_SRC c
+  //
+  // Use `temp_arr` as pointer (points to the frist element address)
+  //
+  for (usize index = 0; index < arr_len; index++) {
+      printf("\n>>> (pointer_in_arr - loop 1.1) - %p: %" PRIu16,
+             (void *)(temp_arr + index),
+             ,*(temp_arr + index));
+  }
+#+END_SRC
+
+
+
+And one more thing to prove that you can swap the =pointer= and =array (var name)= is this sample:
+
+#+BEGIN_SRC c
+  u16 *loop_ptr_2 = temp_arr;
+  for (usize index = 0; index < arr_len; index++) {
+      printf("\n>>> (pointer_in_arr - loop 1.1.) - %p: %" PRIu16,
+             (void *)(loop_ptr_2 + index),
+             loop_ptr_2[index]);
+  }
+#+END_SRC
+
+Plz pay attention to that ~loop_ptr_2[index]~, all the following codes present the same meaning: get the value that the pointer points to, AKA: dereference
+
+- ~temp_arr[index]~
+- ~loop_ptr_2[index]~
+- ~*(loop_ptr_2 + index)~
+- ~*(temp_arr + index)~
+
+
+Again: *An array variable is just a pointer, you can swap using them at any given time.*
+
+
+But the slight difference between the =array variable= and the =pointer= is that:
+
+_The compiler can check and detect the array boundary errors but NOT check on the pointer form_!!!
+
+Consider the following code:
+
+#+BEGIN_SRC c
+  temp_arr[10] = 10;
+  loop_ptr_2[10] = 10;
+  *(loop_ptr_2 + 10) = 10;
+#+END_SRC
+
+Compiler produces the error on line of ~temp_arr[10] = 10~ but not the rest of lines:
+
+#+BEGIN_SRC bash
+  warning: array index 10 is past the end of the array (which contains 5 elements) [-Warray-bounds]
+  temp_arr[10] = 10;
+  ^        ~~
+  note: array 'temp_arr' declared here
+  u16 temp_arr[] = {1, 2, 3, 4, 5};
+  ^
+  1 warning generated.
+#+END_SRC
+
+

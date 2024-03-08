@@ -1,0 +1,51 @@
+* Pointer arithmetic
+
+What ~ptr + x~ means:
+
+It's saying: add/move the pointer address to =X unit of pointed type= from the current address (memory location) that the pointer points to.
+
+So, here is the pseudo formula: ~ptr + x~ => ~ptr + x * sizeof(POINTER_TYPE)~
+
+Here is the example:
+
+#+BEGIN_SRC c
+  #include <inttypes.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  //
+  // Force to convert the integer decimal value `100` as the pointer
+  // address, it doesn't matter if you don't de-reference it.
+  //
+  int *int_ptr = (int *)100;
+  printf("\n>>> int_ptr addr: %" PRIu64, (uint64_t)((void *)int_ptr));
+
+  //
+  // `int_ptr++` means `int_ptr += 1 * sizeof(int)`
+  //
+  int_ptr++;
+  printf("\n>>> int_ptr addr: %" PRIu64, (uint64_t)((void *)int_ptr));
+
+  //
+  // `int_ptr += 1` means `int_ptr += 1 * sizeof(int)`
+  //
+  int_ptr += 1;
+  printf("\n>>> int_ptr addr: %" PRIu64, (uint64_t)((void *)int_ptr));
+
+  //
+  // `int_ptr += 2` means `int_ptr += 2 * sizeof(int)` // + 8 or say move 8 bytes
+  //
+  int_ptr += 2;
+  printf("\n>>> int_ptr addr: %" PRIu64, (uint64_t)((void *)int_ptr));
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> int_ptr addr: 100
+  >>> int_ptr addr: 104
+  >>> int_ptr addr: 108
+  >>> int_ptr addr: 116
+#+END_SRC
+
