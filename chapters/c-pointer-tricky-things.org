@@ -1,0 +1,76 @@
+* The tricky things in C Pointer: =constants pointer= differences
+
+** ~const TYPE *var~ and ~TYPE const *var~
+
+For the pointer to constants, you can change the pointer var (address) value itself, but you can't change the value it points to!!!
+
+#+BEGIN_SRC c
+  char a = 'a';
+  char b = 'b';
+
+  const char *a_ptr = &a;
+  // char const *a_ptr = &a;
+
+  //
+  // You can change the pointer (address) value itself
+  //
+  a_ptr = &b;
+
+  //
+  // But you CANNOT change the value it points to error:
+  // `read-only variable is not assignable`
+  //
+  *a_ptr = 'c';
+#+END_SRC
+
+
+** ~*const TYPE var~
+
+For the constants pointer, you can change the value it points to, but you can't change the pointer (address) value itself!!!
+
+#+BEGIN_SRC c
+  char a = 'a';
+  char b = 'b';
+
+  char *const a_ptr = &a;
+  // char const *a_ptr = &a;
+
+  //
+  // You can change the value it points to
+  //
+  *a_ptr = 'c';
+
+  //
+  // But you CANNOT change the pointer value itself
+  // error: cannot assign to variable 'a_ptr' with const-qualified type 'char *const'
+  //
+  a_ptr = &b;
+#+END_SRC
+
+
+** ~const TYPE *const var~ and ~TYPE const *const var~
+
+For the constants pointer to constants, you can't change both!!!
+
+#+BEGIN_SRC c
+  char a = 'a';
+  char b = 'b';
+
+  const char *const a_ptr = &a;
+  // char const *const a_ptr = &a;
+
+  // You can't change both
+
+  //
+  // error: read-only variable is not assignable
+  //
+  *a_ptr = 'c';
+
+  //
+  // error: cannot assign to variable 'a_ptr' with const-qualified type 'const char *const'
+  //
+  a_ptr = &b;
+#+END_SRC
+
+
+

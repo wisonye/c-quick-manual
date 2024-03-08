@@ -4,4 +4,5 @@
 *** [[file:chapters/what-is-pointer-and-how-it-works.org][What is a pointer and how it works]]
 *** [[file:chapters/pointer-arithmetic.org][Pointer arithmetic]]
 *** [[file:chapters/pointer-and-array.org][The relationship between Pointer and Array]]
+*** [[file:chapters/c-pointer-tricky-things.org][The tricky things in C Pointer: constants pointer differences]]
 ** =cmake= project template
