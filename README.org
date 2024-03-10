@@ -7,6 +7,7 @@
 *** [[file:chapters/c-pointer-tricky-things.org][The tricky things in C Pointer: constants pointer differences]]
 ** [[file:chapters/string.org][Null terminated string]]
 ** [[file:chapters/macro.org][Macro]]
+** [[file:chapters/error-handling.org][Error handling]]
 ** =cmake= project template
 ** How to
 *** [[file:chapters/how-to-deal-with-valist.org][How to deal with flexible parameter list: va_list]]

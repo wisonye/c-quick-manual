@@ -1,0 +1,49 @@
+* Error handling
+
+When a system call detects an error, it returns an integer value indicating failure (usually -1) and sets the variable =errno= accordingly. For the initial thread and non-threaded processes, =__error()= returns a pointer to a global =errno= variable.
+
+For example, =fopen= (and related functions) will set the global =errno= to when failed. So, you're able to call the following functions to get back the actual error message:
+
+#+BEGIN_SRC c
+  #include <stdio.h>
+
+  //
+  // If you want to access `errno`, then you need this header
+  //
+  #include <errno.h>
+
+  char * strerror(int errnum);
+  void perror(const char *string);
+#+END_SRC
+
+
+Here is the example:
+
+
+#+BEGIN_SRC c
+  int socket_fd = socket(
+      //
+      // Protocol Family: IPv4 (Internet Protocol version 4)
+      //
+      PF_INET,
+      //
+      // Socket type: `SOCK_STREAM` for TCP, `SOCK_DGRAM` for UDP
+      //
+      SOCK_STREAM,
+      //
+      // Protocol: zero (0) to request the default implementation of a
+      // socket type for the protocol, if any.
+      //
+      0);
+
+  if (socket_fd < 1) {
+      //
+      // `print error` via the latest `errno` with the given prefix string
+      //
+      // The following `perror` call outputs the same with:
+      //
+      // fprintf(stderr, ">>> Create socket failed: %s", strerror(errno));
+      //
+      perror(">>> Create socket failed");
+  }
+#+END_SRC
