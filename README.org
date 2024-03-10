@@ -16,3 +16,4 @@
 *** [[file:chapters/how-to-format-string.org][How to format string (sequence of chars)]]
 *** [[file:chapters/how-to-generate-random-numbers.org][How to generate random numbers]]
 *** [[file:chapters/how-to-get-type-name-and-type-size.org][How to get type name and type size]]
+*** [[file:chapters/how-to-measure-execution-time.org][How to measure execution time]]

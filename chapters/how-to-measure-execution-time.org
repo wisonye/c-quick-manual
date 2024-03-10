@@ -1,0 +1,180 @@
+* How to measure execution time
+
+** Header
+
+#+BEGIN_SRC c
+  #ifndef __UTILS_TIMER__
+  #define __UTILS_TIMER__
+
+  #include <stdint.h>
+
+  /*
+   ,* Time unit
+   ,*/
+  typedef enum TimeUnit {
+      TU_NANOSECONDS = 0x01,
+      TU_MICROSECONDS = 0x02,
+      TU_MILLISECONDS = 0x03,
+      TU_SECONDS = 0x04,
+  } TimeUnit;
+
+  /*
+   ,* Get back current time in the given time unit
+   ,*/
+  // uint64_t Timer_get_current_time(TimeUnit time_unit);
+  long double Timer_get_current_time(TimeUnit time_unit);
+
+  #endif
+#+END_SRC
+
+
+** Implementation
+
+#+BEGIN_SRC c
+  #include "timer.h"
+
+  #include <stdint.h>
+  #include <stdio.h>
+
+  //
+  // Linux
+  //
+  #if defined(__linux)
+  #define HAVE_POSIX_TIMER
+  #include <time.h>
+
+  #ifdef CLOCK_MONOTONIC
+  #define CLOCKID CLOCK_MONOTONIC
+  #else
+  #define CLOCKID CLOCK_REALTIME
+  #endif
+
+  //
+  // Apple/Darwin
+  //
+  #elif defined(__APPLE__)
+
+  #define HAVE_MACH_TIMER
+  #include <mach/mach_time.h>
+
+  //
+  // FreeBSD
+  //
+  #elif defined(__FreeBSD__)
+  #include <sys/_timespec.h>
+  #include <time.h>
+
+  #ifdef CLOCK_MONOTONIC
+  #define CLOCKID CLOCK_MONOTONIC
+  #else
+  #define CLOCKID CLOCK_REALTIME
+  #endif
+
+  #endif
+
+  //
+  // Include logger for debugging purpose
+  //
+  #ifdef ENABLE_DEBUG_LOG
+
+  #include "log.h"
+
+  #endif
+
+  //
+  // Global staic init flag
+  //
+  static uint64_t is_init = 0;
+
+  /*
+   ,* Get back current time in the given time unit
+   ,*/
+  // uint64_t Timer_get_current_time(TimeUnit time_unit) {
+  long double Timer_get_current_time(TimeUnit time_unit) {
+      uint64_t now = 0;
+
+  #if defined(__APPLE__)
+      static mach_timebase_info_data_t info;
+      if (0 == is_init) {
+  #ifdef ENABLE_DEBUG_LOG
+          DEBUG_LOG(Timer, Timer_get_current_time, "Apple/Darwin Initialization",
+                    "");
+  #endif
+          mach_timebase_info(&info);
+          is_init = 1;
+      }
+      now = mach_absolute_time();
+      now *= info.numer;
+      now /= info.denom;
+
+  #elif defined(__linux)
+      static struct timespec linux_rate;
+      if (0 == is_init) {
+  #ifdef ENABLE_DEBUG_LOG
+          DEBUG_LOG(Timer, Timer_get_current_time, "Linux Initialization", "");
+  #endif
+          clock_getres(CLOCKID, &linux_rate);
+          is_init = 1;
+      }
+
+      struct timespec spec;
+      clock_gettime(CLOCKID, &spec);
+      now = spec.tv_sec * 1.0e9 + spec.tv_nsec;
+
+  #elif defined(__FreeBSD__)
+      static struct timespec bsd_rate;
+      if (0 == is_init) {
+  #ifdef ENABLE_DEBUG_LOG
+          DEBUG_LOG(Timer, Timer_get_current_time, "FreeBSD Initialization", "");
+  #endif
+          clock_getres(CLOCKID, &bsd_rate);
+          is_init = 1;
+      }
+
+      struct timespec spec;
+      clock_gettime(CLOCKID, &spec);
+      now = spec.tv_sec * 1.0e9 + spec.tv_nsec;
+  #endif
+
+      /* // */
+      /* // TIME     	    IN NANOSECONDS */
+      /* // 1 second     	1.000.000.000 ns */
+      /* // 1 milli second	1.000.000 ns */
+      /* // 1 micro second	1.000 ns */
+      /* // */
+      long double result = now;
+
+      if (time_unit == TU_MICROSECONDS) {
+          result = result / 1000.f;
+      } else if (time_unit == TU_MILLISECONDS) {
+          result = result / 1000000.f;
+      } else if (time_unit == TU_SECONDS) {
+          result = result / 1000000000.f;
+      }
+
+      return result;
+      // return now;
+  }
+#+END_SRC
+
+
+** Test
+
+#+BEGIN_SRC c
+  // Just for init the timer, so the following `Timer_get_current_time`
+  // compare is more fair.
+  long double no_use = Timer_get_current_time(TU_MICROSECONDS);
+  printf("\n>>> Init timer: %Lf", no_use);
+
+  long double start_time_2 = Timer_get_current_time(TU_MICROSECONDS);
+
+  //
+  // Do something
+  //
+  long double end_time_2 = Timer_get_current_time(TU_MICROSECONDS);
+  long double elapsed_time_2 = end_time_2 - start_time_2;
+  DEBUG_LOG(Main, test_link_list,
+            "Time to create 4 smart LinkList instance (stack-allocated): %Lf "
+            "microseconds\n",
+            elapsed_time_2);
+#+END_SRC
