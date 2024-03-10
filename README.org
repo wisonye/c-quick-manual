@@ -8,7 +8,8 @@
 ** [[file:chapters/string.org][Null terminated string]]
 ** [[file:chapters/macro.org][Macro]]
 ** [[file:chapters/error-handling.org][Error handling]]
-** =cmake= project template
+** [[file:chapters/compiler-and-debugging.org][Compiler and debugging]]
+** [[file:chapters/cmake.org][cmake]]
 ** How to
 *** [[file:chapters/how-to-deal-with-valist.org][How to deal with flexible parameter list: va_list]]
 *** [[file:chapters/how-to-format-fixed-width-hex.org][How to print fixed width HEX]]

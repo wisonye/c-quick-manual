@@ -1,0 +1,179 @@
+* CMake
+
+=CMake= is cross-platform free and open-source software for build automation, testing, packaging and installation of software by using a compiler-independent method. =CMake= is not a build system itself.
+
+It generates some kind of the portable make files that is able to build by any suitable IDE or CLI environment, super useful.
+
+Here are the regular steps that how to use it:
+
+** Create the following folder structure:
+
+#+BEGIN_SRC bash
+  .
+  ├── .clang-format
+  ├── .gitignore
+  ├── CMakeLists.txt
+  ├── build
+  └── src
+      └── main.cpp
+#+END_SRC
+
+
+** =CMakeLists.txt= with the following settings:
+
+#+BEGIN_SRC bash
+  cmake_minimum_required(VERSION "3.22")
+
+  # Indicate the compliation environment (Host OS and CPU Arch)
+  # set(CMAKE_SYSTEM_NAME Linux)
+  # set(CMAKE_SYSTEM_PROCESSOR x86_64)
+
+  #
+  # Generate `compile_commands.json` for editor LSP needed
+  #
+  set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
+  #
+  # Compiler and linker
+  #
+  # In `FreeBSD` `cc` and `c++` is the same with `clang` and `clang++`
+  # set(CMAKE_C_COMPILER /usr/bin/cc)
+  # set(CMAKE_CXX_COMPILER /usr/bin/c++)
+  # set(CMAKE_C_COMPILER /usr/bin/clang)
+  # set(CMAKE_CXX_COMPILER /usr/bin/clang++)
+
+  #
+  # Debug or Release
+  #
+  # set(CMAKE_BUILD_TYPE "Debug")
+  set(CMAKE_BUILD_TYPE "Release")
+
+  #
+  # Compile flags
+  #
+  set(CMAKE_C_FLAGS "-pedantic-errors -ansi -Wextra -Wall -Werror -std=gnu2x")
+  set(CMAKE_CXX_FLAGS "-pedantic-errors -Wextra -Wall -Werror -stdlib=libc++ -std=gnu++20")
+
+  #
+  # Project name
+  #
+  project("demo")
+
+  #
+  # Find installed libraries as compilation dependencies
+  # https://cmake.org/cmake/help/latest/command/find_package.html
+  #
+  # find_package(raylib REQUIRED)
+
+  #
+  # Extra include path for `c_utils`
+  #
+  # include_directories("~/my-installed/include/c_utils")
+  # link_directories("~/my-installed/lib")
+
+  #
+  # Executable
+  #
+  add_executable("${PROJECT_NAME}" "src/main.cpp")
+
+  #
+  # Link to system (or third-party) libraries
+  #
+  # target_link_libraries("${PROJECT_NAME}" m)
+  # target_link_libraries("${PROJECT_NAME}" raylib)
+
+  #
+  # Define macros for conditional compilation
+  #
+  target_compile_definitions("${PROJECT_NAME}" PRIVATE ENABLE_DEBUG_LOG)
+
+  #
+  # Debug log
+  #
+  message(">>> CMAKE_EXPORT_COMPILE_COMMANDS: ${CMAKE_EXPORT_COMPILE_COMMANDS}")
+  message(">>> CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+  message(">>> CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+  message(">>> CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
+  message(">>> CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+  message(">>> CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
+  message(">>> CMAKE_C_FLAGS_RELEASE: ${CMAKE_C_FLAGS_RELEASE}")
+  message(">>> CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
+  message(">>> CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+  message(">>> CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
+  message(">>> CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
+  message(">>> raylig_FOUND: ${raylib_FOUND}")
+#+END_SRC
+
+
+** Put some code into =src/main.cpp=
+
+** Put settings to =.gitignore=
+
+#+BEGIN_SRC bash
+  build
+  .cache
+#+END_SRC
+
+
+** Optionally, you can put the following settings to =.clang-format= if you want control the code format
+
+#+BEGIN_SRC bash
+  #---------------------------------------------------------------------------
+  #
+  # Detail options: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+  #
+  #---------------------------------------------------------------------------
+
+  ---
+  # `BaseOnStyle` options:
+  # `LLVM` A style complying with the LLVM coding standards
+  #
+  # `Google` A style complying with Google’s C++ style guide
+  #
+  # `Chromium` A style complying with Chromium’s style guide
+  #
+  # `Mozilla` A style complying with Mozilla’s style guide
+  #
+  # `WebKit` A style complying with WebKit’s style guide
+  #
+  # `Microsoft` A style complying with Microsoft’s style guide
+  #
+  # `GNU` A style complying with the GNU coding standards
+  BasedOnStyle: Google
+  ColumnLimit: 80
+  IndentWidth: 4
+  PPIndentWidth: 4
+  IndentPPDirectives: BeforeHash
+  AlignAfterOpenBracket: Align
+  # AlignAfterOpenBracket: AlwaysBreak
+  AllowAllParametersOfDeclarationOnNextLine: false
+  AllowShortFunctionsOnASingleLine: Inline
+  BinPackArguments: false
+  BinPackParameters: false
+#+END_SRC
+
+
+** Run the following commands to build and run your program
+
+#+BEGIN_SRC bash
+  # Make sure you're in the project root folder
+
+  #
+  # Create and cd into the `build` folder
+  #
+  mkdir build && cd build
+
+  #
+  # Generate make files into `build` folder
+  #
+  # Generate the `compile_commands.json` for `clangd_extensions` neovim plugin
+  #
+  cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 ..
+
+  #
+  # Make sure you're in `build` folder, build the entire project and run
+  # the binary every time after making change to any source code.
+  #
+  make && ./demo
+#+END_SRC
+
