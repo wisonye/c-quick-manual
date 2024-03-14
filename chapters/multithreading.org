@@ -1,0 +1,230 @@
+* Multi-threading
+
+** What is a =Thread= and how it works
+
+Simply, a =thread= groups a few CPU instructions together as a unit that can be scheduled to run by the operating system's scheduler.
+
+Each =process= has at least one thread which is called =main thread=.
+
+In a single CPU with one or more CPU cores environment, all =threads= (in a single process) run in a concurrent model: =CPU time slicing=
+
+It looks like this:
+
+#+BEGIN_SRC text
+  CPU Cycle i: instruction j from thread A is issued.
+  CPU Cycle i + 1: instruction j + 1 from thread A is issued.
+  CPU Cycle i + 2: instruction j + 2 from thread A is issued, which is a load instruction that misses in all caches.
+  CPU Cycle i + 3: thread scheduler invoked, switches to thread B.
+  CPU Cycle i + 4: instruction k from thread B is issued.
+  CPU Cycle i + 5: instruction k + 1 from thread B is issued.
+#+END_SRC
+
+
+Or look like this in a simple diagram (=*= means CPU time):
+
+#+BEGIN_SRC text
+  Thread #1      Thread #2      Thread #3
+     *
+     *
+     *
+                    *
+                    *
+                    *
+                                   *
+                                   *
+                                   *
+     *
+     *
+     *
+#+END_SRC
+
+
+Because the switching is super fast, from a human user's eyes, it looks like all threads (CPU instructions) are running simultaneously like magic.
+
+
+** Context switching
+
+When you run a program binary, it will be loaded into memory and create a =process= instance which includes all necessary resources to run your program, it includes:
+
+- Memory: both code and data
+- File handles, sockets, device handles, windows, etc
+- =PCB=: Process Control Block
+
+Those resources are not shared between processes. When switching from one process to another requires a certain amount of time for doing the administration – saving and loading registers and memory maps, updating various tables and lists, etc.
+
+It means copying data from here to there. That said, how much data need to be copied will become a =cost= to calculate the performance.
+
+For example, =context switching= involves loading the corresponding =process control block (PCB)= stored in the =PCB= table in the kernel stack to retrieve information about the state of the new process. CPU state information including the registers, stack pointer, and program counter as well as memory management information like segmentation tables and page tables (unless the old process shares the memory with the new) are loaded from the =PCB= for the new process.
+
+Let's only talk about the =PCB=, here is the =PCB= source code from =FreeBSD=:
+
+#+BEGIN_SRC c
+   #ifdef __amd64__
+  /*
+   ,* NB: The fields marked with (*) are used by kernel debuggers.  Their
+   ,* ABI should be preserved.
+   ,*/
+  struct pcb {
+          register_t	pcb_r15;	/* (*) */
+          register_t	pcb_r14;	/* (*) */
+          register_t	pcb_r13;	/* (*) */
+          register_t	pcb_r12;	/* (*) */
+          register_t	pcb_rbp;	/* (*) */
+          register_t	pcb_rsp;	/* (*) */
+          register_t	pcb_rbx;	/* (*) */
+          register_t	pcb_rip;	/* (*) */
+          register_t	pcb_fsbase;
+          register_t	pcb_gsbase;
+          register_t	pcb_kgsbase;
+          register_t	pcb_cr0;
+          register_t	pcb_cr2;
+          register_t	pcb_cr3;
+          register_t	pcb_cr4;
+          register_t	pcb_dr0;
+          register_t	pcb_dr1;
+          register_t	pcb_dr2;
+          register_t	pcb_dr3;
+          register_t	pcb_dr6;
+          register_t	pcb_dr7;
+
+          struct region_descriptor pcb_gdt;
+          struct region_descriptor pcb_idt;
+          struct region_descriptor pcb_ldt;
+          uint16_t	pcb_tr;
+
+          u_int		pcb_flags;
+  #define	PCB_FULL_IRET	0x01	/* full iret is required */
+  #define	PCB_DBREGS	0x02	/* process using debug registers */
+  #define	PCB_KERNFPU	0x04	/* kernel uses fpu */
+  #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
+  #define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
+  #define	PCB_KERNFPU_THR	0x20	/* fpu_kern_thread() */
+  #define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
+  #define	PCB_FPUNOSAVE	0x80	/* no save area for current FPU ctx */
+
+          uint16_t	pcb_initial_fpucw;
+
+          /* copyin/out fault recovery */
+          caddr_t		pcb_onfault;
+
+          uint64_t	pcb_saved_ucr3;
+
+          /* local tss, with i/o bitmap; NULL for common */
+          struct amd64tss *pcb_tssp;
+
+          /* model specific registers */
+          register_t	pcb_efer;
+          register_t	pcb_star;
+          register_t	pcb_lstar;
+          register_t	pcb_cstar;
+          register_t	pcb_sfmask;
+
+          struct savefpu	*pcb_save;
+
+          uint64_t	pcb_pad[5];
+  };
+#+END_SRC
+
+
+That means a lot of data to be copied when doing a process context switching.
+
+But in a process, thread context switching is cheaper, as all threads share the same memory and file resources. That means less data to be copied, that's one advantage to use multi-threading over multi-processes.
+
+
+** Hardware multithreading support by multi-cores CPU
+
+The modern CPU usually has Hyper-Threading support, just like multiple sets of registers per CPU core have been added into a single CPU.
+
+It allows thread switching to be done in one CPU cycle, bringing performance improvements.
+
+For example, my =TH80= mini PC uses an =i7-11800H= Intel CPU which has =8= cores (=2= threads supported per core), which total =16= threads can be handled at the same time.
+
+You can check those information by running the following commands:
+
+#+BEGIN_SRC bash
+  sysctl kern.smp | rg core
+  # kern.smp.cores: 8
+  # kern.smp.threads_per_core: 2
+
+  sysctl -a | rg "hw.ncpu"
+  # hw.ncpu: 16
+#+END_SRC
+
+
+So, when you try to implement a thread pool, you better limit the total number of threads to the =total hardware supported thread= (=16= in my case), which can make sure to gain the best performance on top of hardware context switching.
+
+
+** Threading models: =1:1=, =M:N=
+
+When you try to run a specific task (a C function for example), you need to choose a threading model to determine how to run your code at the implementation level.
+
+*** =1:1= or =Native Thread=
+
+Assign a given task to an actual OS thread instance.
+
+Pros:
+
+    - OS provided scheduling
+    - Very straightforward, 1 thread 1 task, easy to understand
+
+Cons:
+
+    - Limited number you can create, as each thread (ThreadControlBlock) consumes memory
+    - Context switch a bit heavy than =Green Thread=
+
+
+*** =M:N= or =Green Thread=
+
+Assign =M= (a brunch of) tasks to a few (limited) OS thread instances.
+
+Pros:
+
+    - Not limited by OS, you're free to implement your own scheduling
+    - Lighter, you can create many many many of them
+
+Cons:
+
+    - Overhead when calling into =C= (as =C= expects dealing with =Native Thread=)
+    - (virtual) stack growth can cause issue
+
+
+Different programming languages choose different threading models:
+
+=Go=: Pick =M:N= green thread, that's why it's super easy to create a million threads
+
+=Rust,C=: Pick =1:1= native thread
+
+
+** Threads and data synchronization
+
+Threads in the same process share the same address space. This allows concurrently running code to couple tightly and conveniently exchange data without the overhead or complexity of an =IPC (Inter-Process Communication)=.
+
+When multiple thread instances run the same function, and different function codes try to access or modify the shared data, it will cause a =Data Race=.
+
+That's why you need to do something to protect the shared data (between threads) to prevent multi-threading data race bugs.
+
+To prevent this, threading APIs offer synchronization primitives such as =mutexes= to lock data structures against concurrent access.
+
+Other synchronization APIs include =condition variables=, =critical sections=, =semaphores=, and =monitors=.
+
+
+** What is =pthread=
+
+The =Portable Operating System Interface (POSIX)= is a family of standards specified by the IEEE Computer Society for maintaining compatibility between operating systems. =POSIX= defines both the system and user-level APIs, along with command line shells and utility interfaces, for software compatibility (portability) with variants of Unix and other operating systems.
+
+=POSIX Threads=, commonly known as =pthreads= are a set of functions that support maintenance threads in a process.
+
+The POSIX thread functions are summarized in this section in the following groups:
+
+•   Thread Routines
+•   Attribute Object Routines
+•   Mutex Routines
+•   Condition Variable Routines
+•   Read/Write Lock Routines
+•   Per-Thread Context Routines
+•   Cleanup Routines
+
+
+Implementations of the API are available on many Unix-like POSIX-conformant operating systems such as =FreeBSD=, =NetBSD=, =OpenBSD=, =Linux=, =macOS=, =Android=,[1] =Solaris=, =Redox=, and =AUTOSAR Adaptive=, typically bundled as a library =libpthread=.
+
+=Windows= does not support the =pthreads= standard natively, therefore the =Pthreads4w= project seeks to provide a portable and open-source wrapper implementation. It can also be used to port Unix software (which uses =pthreads=) with little or no modification to the Windows platform. =Pthreads4w= version 3.0.0 or later, released under the Apache Public License v2.0, is compatible with 64-bit or 32-bit Windows systems. Version 2.11.0,[6] released under the LGPLv3 license, is also 64-bit or 32-bit compatible.

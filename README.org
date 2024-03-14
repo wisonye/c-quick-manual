@@ -10,6 +10,8 @@
 ** [[file:chapters/error-handling.org][Error handling]]
 ** [[file:chapters/compiler-and-debugging.org][Compiler and debugging]]
 ** [[file:chapters/cmake.org][cmake]]
+** [[file:chapters/multithreading.org][Multi-threading]]
+*** Create new thread
 ** How to
 *** [[file:chapters/how-to-deal-with-valist.org][How to deal with flexible parameter list: va_list]]
 *** [[file:chapters/how-to-format-fixed-width-hex.org][How to print fixed width HEX]]
