@@ -1,8 +1,8 @@
 * Create new thread and wait for it to finish
 
-~pthread_create~: Creates a new thread of execution..
+~pthread_create~: Creates a new thread of execution. It returns =0= if succeeded.
 
-~pthread_join~: Causes the calling thread to wait for the termination of the specified thread.
+~pthread_join~: Causes the calling thread to wait for the termination of the specified thread. It returns =0= if succeeded.
 
 
 #+BEGIN_SRC c
@@ -11,13 +11,23 @@
 
   #define TP_TEST_THREAD_COUNT 5
 
+  typedef struct {
+      int value;
+      int result;
+  } TaskData;
+
   ///
   /// Thread funciton must take a `*void` as parameter and return a `*void`
   ///
   void *my_task(void *state) {
-      printf("\n>>> [ task ] - task %d is running......",
-             ,*((int *)state));
-      printf("\n>>> [ task ] - task %d is done.", *((int *)state));
+      int data = ((TaskData *)state)->value;
+
+      printf("\n>>> [ task ] - task %d is running......", data);
+      printf("\n>>> [ task ] - task %d is done.", data);
+
+      // Update result
+      ((TaskData *)state)->result = data + 10;
+
       return NULL;
   }
 
@@ -25,12 +35,6 @@
   ///
   ///
   int main(void) {
-      /* int		(pthread_t * __restrict, */
-      /* 		    const pthread_attr_t * __restrict, void *(*) (void *), */
-      /* 		    void * __restrict); */
-
-      int thread_ids[TP_TEST_THREAD_COUNT] = {0};
-
       //
       // typedef struct	pthread			*pthread_t;
       //
@@ -42,20 +46,20 @@
       pthread_attr_t thread_attrs[TP_TEST_THREAD_COUNT] = {0};
 
       //
-      // Task data
+      // Task data that will be passed into thread function
       //
-      int task_data[TP_TEST_THREAD_COUNT] = {0};
+      TaskData task_data[TP_TEST_THREAD_COUNT] = {0};
 
       for (int index = 0; index < TP_TEST_THREAD_COUNT; index++) {
           //
           // Save thread function parameter
           //
-          task_data[index] = index + 1;
+          task_data[index].value = index + 1;
 
           //
           // Create new threads
           //
-          thread_ids[index] = pthread_create(
+          int create_result = pthread_create(
               //
               // Pointer to `pthread *`
               //
@@ -72,12 +76,31 @@
               // Parameter that passes into the thread function
               //
               (void *)&task_data[index]);
+
+          if (create_result != 0) {
+              fprintf(stderr,
+                      "Failed to create thread with parameter: %d",
+                      task_data[index].value);
+          }
       }
 
       printf("\n>>> [ main ] - All threads should be running in background.");
 
+      //
+      // Wait for the result
+      //
       for (int index = 0; index < TP_TEST_THREAD_COUNT; index++) {
-          pthread_join(threads[index], NULL);
+          int join_result = pthread_join(threads[index], NULL);
+
+          if (join_result != 0) {
+              fprintf(stderr,
+                      "Failed to join thread with parameter: %d",
+                      task_data[index].value);
+          } else {
+              printf("\n>>> [ main ] - Task %d result: %d",
+                     task_data[index].value,
+                     task_data[index].result);
+          }
       }
 
       printf("\n>>> [ main ] - Done.");
@@ -90,14 +113,19 @@ Output:
 #+BEGIN_SRC bash
   >>> [ task ] - task 3 is running......
   >>> [ task ] - task 3 is done.
-  >>> [ task ] - task 2 is running......
-  >>> [ task ] - task 2 is done.
-  >>> [ task ] - task 4 is running......
-  >>> [ task ] - task 4 is done.
-  >>> [ task ] - task 5 is running......
-  >>> [ task ] - task 5 is done.
   >>> [ task ] - task 1 is running......
   >>> [ task ] - task 1 is done.
+  >>> [ task ] - task 2 is running......
+  >>> [ task ] - task 2 is done.
+  >>> [ task ] - task 5 is running......
+  >>> [ task ] - task 5 is done.
   >>> [ main ] - All threads should be running in background.
-  >>> [ main ] - Done.⏎
+  >>> [ main ] - Task 1 result: 11
+  >>> [ main ] - Task 2 result: 12
+  >>> [ main ] - Task 3 result: 13
+  >>> [ task ] - task 4 is running......
+  >>> [ task ] - task 4 is done.
+  >>> [ main ] - Task 4 result: 14
+  >>> [ main ] - Task 5 result: 15
+  >>> [ main ] - Done.
 #+END_SRC
