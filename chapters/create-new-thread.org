@@ -1,0 +1,103 @@
+* Create new thread and wait for it to finish
+
+~pthread_create~: Creates a new thread of execution..
+
+~pthread_join~: Causes the calling thread to wait for the termination of the specified thread.
+
+
+#+BEGIN_SRC c
+  #include <pthread.h>
+  #include <stdio.h>
+
+  #define TP_TEST_THREAD_COUNT 5
+
+  ///
+  /// Thread funciton must take a `*void` as parameter and return a `*void`
+  ///
+  void *my_task(void *state) {
+      printf("\n>>> [ task ] - task %d is running......",
+             ,*((int *)state));
+      printf("\n>>> [ task ] - task %d is done.", *((int *)state));
+      return NULL;
+  }
+
+  ///
+  ///
+  ///
+  int main(void) {
+      /* int		(pthread_t * __restrict, */
+      /* 		    const pthread_attr_t * __restrict, void *(*) (void *), */
+      /* 		    void * __restrict); */
+
+      int thread_ids[TP_TEST_THREAD_COUNT] = {0};
+
+      //
+      // typedef struct	pthread			*pthread_t;
+      //
+      pthread_t threads[TP_TEST_THREAD_COUNT] = {0};
+
+      //
+      // typedef struct	pthread_attr		*pthread_attr_t;
+      //
+      pthread_attr_t thread_attrs[TP_TEST_THREAD_COUNT] = {0};
+
+      //
+      // Task data
+      //
+      int task_data[TP_TEST_THREAD_COUNT] = {0};
+
+      for (int index = 0; index < TP_TEST_THREAD_COUNT; index++) {
+          //
+          // Save thread function parameter
+          //
+          task_data[index] = index + 1;
+
+          //
+          // Create new threads
+          //
+          thread_ids[index] = pthread_create(
+              //
+              // Pointer to `pthread *`
+              //
+              &threads[index],
+              //
+              // Pointer to `pthread_attr *`
+              //
+              &thread_attrs[index],
+              //
+              // Share thread funciton
+              //
+              my_task,
+              //
+              // Parameter that passes into the thread function
+              //
+              (void *)&task_data[index]);
+      }
+
+      printf("\n>>> [ main ] - All threads should be running in background.");
+
+      for (int index = 0; index < TP_TEST_THREAD_COUNT; index++) {
+          pthread_join(threads[index], NULL);
+      }
+
+      printf("\n>>> [ main ] - Done.");
+  }
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> [ task ] - task 3 is running......
+  >>> [ task ] - task 3 is done.
+  >>> [ task ] - task 2 is running......
+  >>> [ task ] - task 2 is done.
+  >>> [ task ] - task 4 is running......
+  >>> [ task ] - task 4 is done.
+  >>> [ task ] - task 5 is running......
+  >>> [ task ] - task 5 is done.
+  >>> [ task ] - task 1 is running......
+  >>> [ task ] - task 1 is done.
+  >>> [ main ] - All threads should be running in background.
+  >>> [ main ] - Done.⏎
+#+END_SRC
