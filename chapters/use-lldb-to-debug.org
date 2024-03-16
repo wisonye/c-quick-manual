@@ -1,87 +1,4 @@
-* Compiler related
-
-** Terms
-
-*** =make=
-
-Powerful program to compile C/C++ files define in =makefile/Makefile/MAKEFILE=. It always look at the first target (which follow by a =:=) if you don't provide any =target= as argument.
-
-The usual way to compile and install a program is by running =make && make install=.
-
-=install= target means copy all binaries to the default binary path, e.g. =/usr/bin=.
-
-If you want to uninstall/remove all copied binaries, run =make uninstall=.
-
-If you want to clean all compiled binaries and object files, run =make clean=.
-
-
-*** =gmake=: GNU make
-
-*** =lldb=: LLVM debugger, FreeBSD default debugger
-
-*** =gdb=: GNU debugger
-
-*** =clangd=: A language server that provides IDE-like features to editors.
-
-
-** Compiler options
-
-*** =-o= 
-
-Write to ouput file, otherwise, output to =a.out= by default.
-
-*** =-std=<standard>=
-
-Specify the language standard to compile for. For example: =-std=gnu2x=, =-std=c++14=
-
-*** =-stdlib=<library>=
-
-Specify the C++ standard library to use, supported options are =libstdc++= and =libc++.= If not specified, platform default will be used. 
-
-For example: =-stdlib=libstdc++=
-
-*** =-ansi=
-
-Same as =-std=c89=
-
-*** =-O0, -O1, -O2, -O3, -Ofast, -Os, -Oz, -Og, -O, -O4=
-
-Specify which optimization level to use, =-O0= Means =no optimization=: this level compiles the fastest and generates the most debuggable code.
-
-=-O= Equivalent to =-O1=.
-
-*** -=Wall=
-
-Enable all the warnings which the authors of =cc= believe are worthwhile. Despite the name, it will not enable all the warnings =cc= is capable of.
-
-*** =-Werror=
-
-Treat warning as error.
-
-*** =-g=
-
-Generate debug information.
-
-*** =-L=
-
-Specify the include search path.
-
-*** =-llibrary=
-
-Specify a function library to be used at =link= time. The rule is that if the library is called =libsomething.a=, you give =cc= the argument =-lsomething= (without =lib= and extension part).
-
-For example, the =math= library is =libm.a=, so you give =cc= the argument =-lm=.
-
-*** =-pedantic-errors=
-
-Error on language extensions. It requests to produce an error if a feature from a later standard revision is used in an earlier mode.
-
-For example if you use =-std=c99= standard to compile your code, but you use =_Generic= which only supported from =C11=, then =clang= will stop on that error. This is very good for you to know which C standard you should use or forbidden some features in your code.
-
-
-
-
-** Use =lldb= to debug your C program
+* Use =lldb= to debug your C program
 
 Before you're able to use =lldb= to debug your program, you need to compile your project in =debug mode= which means:
 
@@ -98,7 +15,7 @@ After that, you can use =lldb= to launch the compiled binary like this:
 
 =lldb= basic usage:
 
-*** Launch your program and create (debug) target
+** Launch your program and create (debug) target
 
 #+BEGIN_SRC bash
   lldb c_demo_pointer
@@ -150,7 +67,7 @@ After that, you can use =lldb= to launch the compiled binary like this:
 
 
 
-*** Launch other program without exiting current `lldb` instance
+** Launch other program without exiting current `lldb` instance
 
 If you want to debug another program at the same time, just create another
 debug target like this:
@@ -189,7 +106,7 @@ And select (switch to) another target:
 #+END_SRC
 
 
-*** How to set a breakpoint and start debugging
+** How to set a breakpoint and start debugging
 
 The original command is =break -f FILE_NAME -l LINE_NO=, but you can use =b= instead of the entire long command.
 
@@ -233,7 +150,7 @@ No, you can run =main()= and stop at the first line:
 #+END_SRC
 
 
-*** How to debug
+** How to debug
 
 You're able to do the following shortcuts for different purposes:
 
@@ -250,7 +167,7 @@ You're able to do the following shortcuts for different purposes:
 - =quit=: Quick current `lldb` instance
 
 
-*** How to list stack frames and jump between stack frames
+** How to list stack frames and jump between stack frames
 
 =bt= (backtrace) list the entire stack frame list, ~frame #0~ is your current function stack frame:
 
@@ -302,7 +219,7 @@ After that, you can go back to your current function call stack frame (=#0=):
 #+END_SRC
 
 
-*** About how to run expression when debugging
+** About how to run expression when debugging
 
 Use =p= to run a expression
 
@@ -324,7 +241,7 @@ Use =p= to run a expression
 #+END_SRC
 
 
-**** Missing return size
+*** Missing return size
 
 But if you try to run some functions that needs the data type, then you might see the following error:
 
@@ -347,7 +264,7 @@ That means you should tell =lldb= to know what data type (how many bytes) to sto
 #+END_SRC
 
 
-**** Use different format to print value
+*** Use different format to print value
 
 You can use the following command to change the default data type output format:
 
@@ -424,7 +341,7 @@ Here is the supported =format name=:
 #+END_SRC
 
 
-*** How to print array:
+** How to print array:
 
 Use =parray {PRINT_ELEMENT_COUNT} {ARRAY_PTR}= to print any type of arrays:
 
@@ -460,7 +377,7 @@ Assumer =self->data= is a =void *=, then you can cast it into any pointer and pr
 #+END_SRC
 
 
-*** How to print memory data:
+** How to print memory data:
 
 Use =memory read= to print memory:
 
@@ -517,7 +434,7 @@ Sample to print the custom struct:
 =0000000000006E6F6946=: fion.first_name
 
 
-*** How to use =printf= to print realtime stuff:
+** How to use =printf= to print realtime stuff:
 
 You need to use =p (void) printf()= to run a realtime =printf= function when debugging:
 
@@ -569,7 +486,7 @@ So you have to add the =&= explicitly to print the local stack variable's addres
 #+END_SRC
 
 
-*** How to manage breakpoints
+** How to manage breakpoints
 
 - =br list=: List all breakpoints
 
@@ -578,7 +495,7 @@ So you have to add the =&= explicitly to print the local stack variable's addres
 - =br del BREAKPOINT_NO=: Delete the given breakpoint
 
 
-*** Use =gui=
+** Use =gui=
 
 After created debug target and set a breakpoint (e.g. =b main=), type =gui= to launch the LLDB GUI for convenient debugging:
 

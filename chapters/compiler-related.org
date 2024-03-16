@@ -1,0 +1,132 @@
+* Compiler related
+
+** Terms
+
+*** =make=
+
+Powerful program to compile C/C++ files define in =makefile/Makefile/MAKEFILE=. It always look at the first target (which follow by a =:=) if you don't provide any =target= as argument.
+
+The usual way to compile and install a program is by running =make && make install=.
+
+=install= target means copy all binaries to the default binary path, e.g. =/usr/bin=.
+
+If you want to uninstall/remove all copied binaries, run =make uninstall=.
+
+If you want to clean all compiled binaries and object files, run =make clean=.
+
+
+*** =gmake=: GNU make
+
+*** =lldb=: LLVM debugger, FreeBSD default debugger
+
+*** =gdb=: GNU debugger
+
+*** =clangd=: A language server that provides IDE-like features to editors.
+
+
+
+** Compiler options
+
+*** =-o= 
+
+Write to ouput file, otherwise, output to =a.out= by default.
+
+*** =-std=<standard>=
+
+Specify the language standard to compile for. For example: =-std=gnu2x=, =-std=c++14=
+
+*** =-stdlib=<library>=
+
+Specify the C++ standard library to use, supported options are =libstdc++= and =libc++.= If not specified, platform default will be used. 
+
+For example: =-stdlib=libstdc++=
+
+*** =-ansi=
+
+Same as =-std=c89=
+
+*** =-O0, -O1, -O2, -O3, -Ofast, -Os, -Oz, -Og, -O, -O4=
+
+Specify which optimization level to use, =-O0= Means =no optimization=: this level compiles the fastest and generates the most debuggable code.
+
+=-O= Equivalent to =-O1=.
+
+*** -=Wall=
+
+Enable all the warnings which the authors of =cc= believe are worthwhile. Despite the name, it will not enable all the warnings =cc= is capable of.
+
+*** =-Werror=
+
+Treat warning as error.
+
+*** =-g=
+
+Generate debug information.
+
+*** =-L=
+
+Specify the include search path.
+
+*** =-llibrary=
+
+Specify a function library to be used at =link= time. The rule is that if the library is called =libsomething.a=, you give =cc= the argument =-lsomething= (without =lib= and extension part).
+
+For example, the =math= library is =libm.a=, so you give =cc= the argument =-lm=.
+
+*** =-pedantic-errors=
+
+Error on language extensions. It requests to produce an error if a feature from a later standard revision is used in an earlier mode.
+
+For example if you use =-std=c99= standard to compile your code, but you use =_Generic= which only supported from =C11=, then =clang= will stop on that error. This is very good for you to know which C standard you should use or forbidden some features in your code.
+
+*** =-static=
+
+Produce a static link binary
+
+
+
+** How to produce static link binary
+
+#+BEGIN_SRC bash
+  #
+  # The normal way, use `-lLIBRARY_NAME`
+  #
+  clang -pedantic-errors -ansi -Wextra -Wall -Werror \
+    -std=gnu2x \
+    -O3 \
+    -o ./main_static \
+    -static \
+    -lm \
+    -lpthread \
+    src/main.c
+
+  #
+  # Or you can provide the `.a` static-linked lib directly
+  #
+  clang -pedantic-errors -ansi -Wextra -Wall -Werror \
+    -std=gnu2x \
+    -O3 \
+    -o ./main_static \
+    -static \
+    /usr/lib/libm.a \
+    /usr/lib/libpthread.a \
+    src/main.c
+
+  #
+  # Discards/remove all symbols from object files
+  #
+  strip ./main_static
+#+END_SRC
+
+
+To confirm that's a static-linked binary:
+
+#+BEGIN_SRC bash
+  file main_static
+  # main_static: ELF 64-bit LSB executable, x86-64, version 1 (FreeBSD), statically linked, for FreeBSD 14.0 (1400097), FreeBSD-style, stripped
+
+  ldd main_static
+  # ldd: main_static: not a dynamic ELF executable
+#+END_SRC
+
+
