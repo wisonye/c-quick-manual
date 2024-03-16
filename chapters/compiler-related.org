@@ -87,6 +87,8 @@ Produce a static link binary
 
 ** How to produce static link binary
 
+For example, =src/main.c= use =match= and =pthread= libraries and you want a static-linked binary:
+
 #+BEGIN_SRC bash
   #
   # The normal way, use `-lLIBRARY_NAME`
