@@ -108,24 +108,26 @@
 #+END_SRC
 
 
-Output:
+Compile and run (make sure you link to =libpthread=):
 
 #+BEGIN_SRC bash
-  >>> [ task ] - task 3 is running......
-  >>> [ task ] - task 3 is done.
-  >>> [ task ] - task 1 is running......
-  >>> [ task ] - task 1 is done.
-  >>> [ task ] - task 2 is running......
-  >>> [ task ] - task 2 is done.
-  >>> [ task ] - task 5 is running......
-  >>> [ task ] - task 5 is done.
-  >>> [ main ] - All threads should be running in background.
-  >>> [ main ] - Task 1 result: 11
-  >>> [ main ] - Task 2 result: 12
-  >>> [ main ] - Task 3 result: 13
-  >>> [ task ] - task 4 is running......
-  >>> [ task ] - task 4 is done.
-  >>> [ main ] - Task 4 result: 14
-  >>> [ main ] - Task 5 result: 15
-  >>> [ main ] - Done.
+  clang -pedantic-errors -ansi -Wextra -Wall -Werror -std=gnu2x -lm -lpthread -o ./main src/main.c && ./main
+
+  # >>> [ task ] - task 3 is running......
+  # >>> [ task ] - task 3 is done.
+  # >>> [ task ] - task 1 is running......
+  # >>> [ task ] - task 1 is done.
+  # >>> [ task ] - task 2 is running......
+  # >>> [ task ] - task 2 is done.
+  # >>> [ task ] - task 5 is running......
+  # >>> [ task ] - task 5 is done.
+  # >>> [ main ] - All threads should be running in background.
+  # >>> [ main ] - Task 1 result: 11
+  # >>> [ main ] - Task 2 result: 12
+  # >>> [ main ] - Task 3 result: 13
+  # >>> [ task ] - task 4 is running......
+  # >>> [ task ] - task 4 is done.
+  # >>> [ main ] - Task 4 result: 14
+  # >>> [ main ] - Task 5 result: 15
+  # >>> [ main ] - Done.
 #+END_SRC
