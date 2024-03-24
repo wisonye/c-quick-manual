@@ -43,7 +43,16 @@
       //
       // typedef struct	pthread_attr		*pthread_attr_t;
       //
-      pthread_attr_t thread_attrs[TP_TEST_THREAD_COUNT] = {0};
+      pthread_attr_t thread_attr = {0};
+
+      //
+      // Get back the default thread attribute, it can be re-used to create
+      // one or more thread instances.
+      //
+      if (pthread_attr_init(&thread_attr) != 0) {
+          perror("\n>>> Init thread attribute failed: ");
+                return -1;
+      }
 
       //
       // Task data that will be passed into thread function
@@ -67,7 +76,9 @@
               //
               // Pointer to `pthread_attr *`
               //
-              &thread_attrs[index],
+              // You also can pass `NULL` here for using the default thread attribute
+              //
+              &thread_attr,
               //
               // Share thread funciton
               //
@@ -83,6 +94,12 @@
                       task_data[index].value);
           }
       }
+
+      //
+      // Once a thread has been created, the thread attribute is no
+      // longer needed, destroy it
+      //
+      pthread_attr_destroy(&thread_attr);
 
       printf("\n>>> [ main ] - All threads should be running in background.");
 
