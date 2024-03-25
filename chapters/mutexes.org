@@ -107,30 +107,11 @@ That's exclusive protection, and you should use =Mutex= in that situation.
   #define __COPYING_MACHINE_H__
 
   #include <errno.h>
+  // `<pthread.h>` already included `<time.h>`
   #include <pthread.h>
   #include <stdint.h>
   #include <string.h>
   #include <unistd.h>
-
-  //
-  // Linux
-  //
-  #if defined(__linux)
-      #define HAVE_POSIX_TIMER
-      #include <time.h>
-  //
-  // FreeBSD
-  //
-  #elif defined(__FreeBSD__)
-      #include <sys/_timespec.h>
-      #include <time.h>
-  //
-  // OpenBSD
-  //
-  #elif defined(__OpenBSD__)
-      #include <sys/_time.h>
-      #include <time.h>
-  #endif
 
   #define LOG_SIZE 4
   #define LOG_MESSAGE_SIZE 100
