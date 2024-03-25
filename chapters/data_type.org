@@ -3,28 +3,37 @@
 ** Integer type alias
 
 #+BEGIN_SRC c
+  typedef int8_t i8;
+  typedef int16_t i16;
+  typedef int32_t i32;
+  typedef int64_t i64;
+  typedef intptr_t isize;
+
   typedef uint8_t u8;
   typedef uint16_t u16;
   typedef uint32_t u32;
   typedef uint64_t u64;
-  typedef uint64_t usize;
+  typedef uintptr_t usize;
 #+END_SRC
 
 
-** Maximum unsigned integer value
+** Maximum integer value
 
 #+BEGIN_SRC c
   #include <stdint.h>
 
-  printf("\n>>> INT_MAX: \t%ld", INTMAX_MAX);	// 9,223,372,036,854,775,807
+  printf("\n>>> INT_MAX: \t\t%ld", INTMAX_MAX);   // 9,223,372,036,854,775,807
 
-  printf("\n>>> INT8_MAX: \t%u", INT8_MAX);	        // 127
-  printf("\n>>> INT16_MAX: \t%d", INT16_MAX);	// 32,767
-  printf("\n>>> INT32_MAX: \tj%u", INT32_MAX);	// 2,147,483,647
-  printf("\n>>> INT64_MAX: \t%lu", INT64_MAX);	// 18,446,744,073,709,551,615
-  printf("\n>>> UINT8_MAX: \t%u", UINT8_MAX);	// 255
-  printf("\n>>> UINT16_MAX: %d", UINT16_MAX);	// 65,535
-  printf("\n>>> UINT32_MAX: %u", UINT32_MAX);	// 4,294,967,295
-  printf("\n>>> UINT64_MAX: %lu", UINT64_MAX);	// 18,446,744,073,709,551,615
-  printf("\n>>> SIZE_MAX: \t%lu", SIZE_MAX);	// 18,446,744,073,709,551,615
+  printf("\n>>> INT8_MAX: \t\t%u", INT8_MAX);     // 127
+  printf("\n>>> INT16_MAX: \t\t%d", INT16_MAX);   // 32,767
+  printf("\n>>> INT32_MAX: \t\t%u", INT32_MAX);   // 2,147,483,647
+  printf("\n>>> INT64_MAX: \t\t%lu", INT64_MAX);  // 9,223,372,036,854,775,807
+  printf("\n>>> INTPTR_MAX: \t%lu", INTPTR_MAX);  // 9,223,372,036,854,775,807
+
+  printf("\n>>> UINT8_MAX: \t\t%u", UINT8_MAX);   // 255
+  printf("\n>>> UINT16_MAX: \t%d", UINT16_MAX);   // 65,535
+  printf("\n>>> UINT32_MAX: \t%u", UINT32_MAX);   // 4,294,967,295
+  printf("\n>>> UINT64_MAX: \t%lu", UINT64_MAX);  // 18,446,744,073,709,551,615
+  printf("\n>>> UINTPTR_MAX: \t%lu", UINTPTR_MAX);// 18,446,744,073,709,551,615
+  printf("\n>>> SIZE_MAX: \t\t%lu", SIZE_MAX);    // 18,446,744,073,709,551,615
 #+END_SRC

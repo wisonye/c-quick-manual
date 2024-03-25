@@ -1,8 +1,23 @@
 * Create new thread and wait for it to finish
 
-~pthread_create~: Creates a new thread of execution. It returns =0= if succeeded.
+- ~pthread_attr_init~
 
-~pthread_join~: Causes the calling thread to wait for the termination of the specified thread. It returns =0= if succeeded.
+  Init with default thread attribute which can be re-used to create one or more thread instances.
+
+  After that, you can use any =pthread_attr_set*()= functions set the attribute that corresponds to each function name. For example, you can set the stack size, guard size, detach state, etc.
+
+
+- ~pthread_attr_destroy~
+
+  Once a thread has been created, the thread attribute is no longer needed, destroy it.
+
+- ~pthread_create~
+
+  Creates a new thread of execution. It returns =0= if succeeded. For using a default thread attribute, you can pass a =NULL= to the second parameter.
+
+- ~pthread_join~
+
+  Causes the calling thread to wait for the termination of the specified thread. It returns =0= if succeeded.
 
 
 #+BEGIN_SRC c
