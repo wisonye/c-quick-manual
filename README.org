@@ -7,6 +7,8 @@
 *** [[file:chapters/pointer-and-array.org][The relationship between Pointer and Array]]
 *** [[file:chapters/c-pointer-tricky-things.org][The tricky things in C Pointer: constants pointer differences]]
 ** [[file:chapters/string.org][Null terminated string]]
+** [[file:chapters/string-format.org][String format]]
+** [[file:chapters/manipulate-string.org][Manipulate String]]
 ** [[file:chapters/macro.org][Macro]]
 ** [[file:chapters/error-handling.org][Error handling]]
 ** [[file:chapters/compiler-related.org][Compiler related]]

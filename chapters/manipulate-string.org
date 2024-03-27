@@ -1,0 +1,209 @@
+* Manipulate String
+
+** Equals check
+
+=strcmp= and =strcasecmp= return =0= if string is equal:
+ 
+#+BEGIN_SRC c
+  #include <string.h>
+
+  const char *str = "abc EfG ijk";
+
+  //
+  // String equals or not
+  //
+  printf("\n>>> is_str_equal: %s",
+         strcmp(str, "abc efg ijk") == 0 ? "Yes" : "No");
+  printf("\n>>> is_str_equal: %s",
+         strcmp(str, "abc EfG ijk") == 0 ? "Yes" : "No");
+  printf("\n>>> is_str_equal: %s",
+         strcasecmp(str, "abc efg ijk") == 0 ? "Yes" : "No");
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> is_str_equal: No
+  >>> is_str_equal: Yes
+  >>> is_str_equal: Yes
+#+END_SRC
+
+
+** Searching
+
+~strstr~ and ~strcasestr~ perform a substring search on the given string, it returns:
+
+- The original string is substring is empty.
+- The substring (pointer) is substring found.
+- =NULL= if substring not found. That's the result to check it contains substring or not.
+
+
+#+BEGIN_SRC c
+  #include <string.h>
+
+  const char *str = "abc EfG ijk";
+
+  //
+  // Find index of substring
+  //
+  const char *substring                    = strstr(str, "EfG");
+  const char *substring_non_case_sensitive = strcasestr(str, "efg");
+  const char *substring_is_empty_string    = strcasestr(str, "");
+  printf("\n>>> substring: %s", substring);
+  printf("\n>>> substring_non_case_sensitive: %s",
+         substring_non_case_sensitive);
+  printf("\n>>> substring_is_empty_string: %s", substring_is_empty_string);
+
+  //
+  // Contains substring or not
+  //
+  bool is_contains_substring = strstr(str, "efg") != NULL;
+  bool is_contains_substring_non_case_sensitive =
+      strcasestr(str, "efg") != NULL;
+  printf("\n>>> is_contains_substring: %s",
+         is_contains_substring ? "Yes" : "No");
+  printf("\n>>> is_contains_substring_non_case_sensitive: %s",
+         is_contains_substring_non_case_sensitive ? "Yes" : "No");
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> substring: EfG ijk
+  >>> substring_non_case_sensitive: EfG ijk
+  >>> substring_is_empty_string: abc EfG ijk
+  >>> is_contains_substring: No
+  >>> is_contains_substring_non_case_sensitive: Yes
+#+END_SRC
+
+
+** To uppercase or lowercase
+
+~toupper~ and ~tolower~
+
+#+BEGIN_SRC c
+  #include <ctype.h>
+
+  char str[] = "abc EfG ijk";
+  printf("\n>>> str: %s", str);
+
+  size_t len = strlen(str);
+  for( size_t index = 0; index < len; index++){
+          str[index] = toupper(str[index]);
+  }
+  printf("\n>>> str to uppercase: %s", str);
+
+  for( size_t index = 0; index < len; index++){
+          str[index] = tolower(str[index]);
+  }
+  printf("\n>>> str to lowercase: %s", str);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> str: abc EfG ijk
+  >>> str to uppercase: ABC EFG IJK
+  >>> str to lowercase: abc efg ijk
+#+END_SRC
+
+
+** Trim
+
+#+BEGIN_SRC c
+  #include <ctype.h>
+  #include <string.h>
+
+  char *trim(char *s) {
+      if (s == NULL) return s;
+
+      while (isspace(*s)) s++;
+
+      char *back;
+      int len = strlen(s);
+
+      if (len == 0) return (s);
+
+      back = s + len;
+      while (isspace(*--back))
+          ;
+      ,*(back + 1) = '\0';
+
+      return s;
+  }
+
+  char str[] = "   abc EfG ijk  ";
+  printf("\n>>> str: \t\t|%s|", str);
+
+  const char *trimmed_str = trim(str);
+  printf("\n>>> trimmed_str: \t|%s|", trimmed_str);
+
+  char *str1               = NULL;
+  char *str2               = "";
+  char *str3               = " ";
+  char str4[]              = "";
+  char str5[]              = " ";
+  const char *trimmed_str1 = trim(str1);
+  const char *trimmed_str2 = trim(str2);
+  const char *trimmed_str3 = trim(str3);
+  const char *trimmed_str4 = trim(str4);
+  const char *trimmed_str5 = trim(str5);
+  printf("\n>>> trimmed_str1, len: %lu, value: |%s|",
+         (trimmed_str1 == NULL) ? 0 : strlen(trimmed_str1),
+         trimmed_str1);
+  printf("\n>>> trimmed_str2, len: %lu, value: |%s|",
+         strlen(trimmed_str2),
+         trimmed_str2);
+  printf("\n>>> trimmed_str3, len: %lu, value: |%s|",
+         strlen(trimmed_str3),
+         trimmed_str3);
+  printf("\n>>> trimmed_str4, len: %lu, value: |%s|",
+         strlen(trimmed_str4),
+         trimmed_str4);
+  printf("\n>>> trimmed_str5, len: %lu, value: |%s|",
+         strlen(trimmed_str5),
+         trimmed_str5);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> str: 		|   abc EfG ijk  |
+  >>> trimmed_str: 	|abc EfG ijk|
+  >>> trimmed_str1, len: 0, value: |(null)|
+  >>> trimmed_str2, len: 0, value: ||
+  >>> trimmed_str3, len: 0, value: ||
+  >>> trimmed_str4, len: 0, value: ||
+  >>> trimmed_str5, len: 0, value: ||
+#+END_SRC
+
+
+** Split and tokenize
+
+#+BEGIN_SRC c
+  char str[] = "abc EfG ijk";
+  printf("\n>>> str: \t\t|%s|", str);
+  //
+  // DO NOT DO THIS, as `strsep` will modify the `str` itself!!!
+  //
+  /* char *ptr = &str[0]; */
+  /* char *token = strsep(&ptr, " "); */
+
+  //
+  // Make a copy before searching token
+  //
+  char *str_to_search = strdup(str);
+  if (str_to_search == NULL) {
+      fprintf(stderr, "Duplicate string failed.");
+	  exit(1);
+  }
+
+  char *token = strsep(&str_to_search, " ");
+  while (token != NULL && strlen(token) != strlen(str)) {
+      // while (token != NULL) {
+      printf("\n>>> token found: %s", token);
+      token = strsep(&str_to_search, " ");
+  }
+  free(str_to_search);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> str: 		|abc EfG ijk|
+  >>> token found: abc
+  >>> token found: EfG
+  >>> token found: ijk
+#+END_SRC
+
+

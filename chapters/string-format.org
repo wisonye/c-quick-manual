@@ -1,0 +1,154 @@
+* String format
+
+Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
+
+** 1. Format float value with the given decimals
+
+~%.Xf~: =X= is the decimals count
+
+#+BEGIN_SRC c
+  float f1 = 8.3456;
+  double d1= 7.123456;
+      printf("\n>>> f1: %.3f", f1);
+      printf("\n>>> d1: %.3f", d1);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> f1: 8.346
+  >>> d1: 7.123
+#+END_SRC
+
+
+** 2. Format pointer
+
+~%p~
+
+#+BEGIN_SRC c
+  int a    = 10;
+  int *ptr = &a;
+  printf("\n>>> ptr: %p", (void *)ptr);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> ptr: 0x820f311f4
+#+END_SRC
+
+
+** 5. Format binary
+
+- ~%b~
+- ~%B~
+
+- ~%08b~
+
+    - ~b~ output integer value in binary notation
+    - ~0~ means the fill char
+    - ~8~ means the width (how many chars to fill with fill char)
+
+#+BEGIN_SRC c
+  int a    = 4;
+  printf("\n>>> a: 0b%04b", a);
+  printf("\n>>> a: 0B%08B", a);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> a: 0b0100
+  >>> a: 0B00000100
+#+END_SRC
+
+
+** 6. Format HEX
+
+- ~%x~ (lowercase) or ~%X~ (uppercase)
+
+- ~%02X~: fixed width
+    - ~0~ means the fill char
+    - ~2~ means the width (how many chars to fill with fill char)
+
+#+BEGIN_SRC c
+  unsigned char unsigned_char_v   = 0x0A;
+  unsigned short unsigned_short_v = 0x0123;
+
+  printf("\n>>> unsigned_char_v: 0x%02X", unsigned_char_v);
+  printf("\n>>> unsigned_short_v: 0x%06X", unsigned_short_v);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> unsigned_char_v: 0x0A
+  >>> unsigned_short_v: 0x000123
+#+END_SRC
+
+
+** 7. Format to the given buffer
+
+~snprintf~
+
+#+BEGIN_SRC c
+  //
+  // Buffer accepts max 9 chars + '\0'
+  //
+  char buffer[10] = {0};
+
+  //
+  // Copy a larger string into buffer, it will be truncated,
+  // and you don't need to put the '\0' at the correct position,
+  // as `buffer` has been initialized with all zeros.
+  //
+  snprintf(buffer, sizeof(buffer), "1234567890ABCDEF");
+
+  printf("\n>>> buffer: %s, len: %zu", buffer, strlen(buffer));
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> buffer: 123456789, len: 9
+#+END_SRC
+
+
+
+*** 7.1 Format to the given buffer but you don't know the size
+
+If you want to use ~std.fmt.bufPrint~ but you don't know how big the buffer is and you want the buffer size as small as possible.
+
+Then you can use ~std.fmt.allocPrint~, it calculates the size of the given format string and call ~std.fmt.bufPrint~ under the hood.
+
+#+BEGIN_SRC zig
+  const std = @import("std");
+  const Allocator = std.mem.Allocator;
+  const print = std.debug.print;
+
+  ///
+  ///
+  ///
+  fn dynamic_print(allocator: Allocator) []const u8 {
+      const Person = struct {
+          first_name: []const u8,
+          last_name: []const u8,
+          age: u8,
+      };
+
+      const me = Person{
+          .first_name = "Wison",
+          .last_name = "Ye",
+          .age = 100,
+      };
+
+      // An internal buffer will be created via `allocator.alloc()`
+      return std.fmt.allocPrint(allocator, "Me: {}", .{me}) catch "";
+  }
+
+  ///
+  ///
+  ///
+  pub fn main() !void {
+      var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+      defer arena.deinit();
+      const allocator = arena.allocator();
+      {
+          const temp_str = dynamic_print(allocator);
+          print("\n>>> temp_str: {s}", .{temp_str});
+      }
+  }
+#+END_SRC
+
+
+Also, ~std.fmt.allocPrint~ is useful inside ~build.zig~, as you can use the ~b.allocator~ without caring about creating ~Allocator~ instance and freeing memory.
