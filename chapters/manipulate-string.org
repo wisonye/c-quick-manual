@@ -121,7 +121,7 @@
       back = s + len;
       while (isspace(*--back))
           ;
-      ,*(back + 1) = '\0';
+      *(back + 1) = '\0';
 
       return s;
   }

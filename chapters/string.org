@@ -1,30 +1,131 @@
 * Null terminated string
 
-C =string= actually just a sequence of characters.
+C string actually just a sequence of characters.
+
+Usually, c string is initialized in the following ways:
+
+** Define as unknown size char array (=char var[] = "strings";=)
+
+The =temp_string= here will be a fixed size (6bytes) char array.
 
 #+BEGIN_SRC c
-  char my_name[] = "wisonye";
-#+END_SRC
-
-
-~sizeof(my_name)~ is =8=, as it includes the final =\0= null-terminated character!!!
-
-~strlen(my_name)~ is =7=, as it doesn't count the final =\0= null-terminated character!!!
-
-But you shouldn't use ~sizeof~ on a ~char *~ (pointer, NOT ~char []~), as ou always get back =4= (4bytes on 32bit) or =8= (8bytes on 64bit):
-
-#+BEGIN_SRC c
-  char *my_name= "wisonye12345";
-
-  printf("\nsizeof(my_name): %lu", sizeof(my_name));
-  printf("\nstrlen(my_name): %lu", strlen(my_name));
+  const char temp_string[] = "12345";
+  printf("\n>>> temp_string, len: %lu, size: %zu, value: %s",
+         strlen(temp_string),
+         sizeof(temp_string),
+         temp_string);
 #+END_SRC
 
 Output:
 
 #+BEGIN_SRC bash
-  sizeof(my_name): 8
-  strlen(my_name): 12
+  >>> temp_string, len: 5, size: 6, value: 12345
 #+END_SRC
 
 
+- ~strlen(temp_string)~ is =5=, as it doesn't count the final =\0= null-terminated character!!!
+
+- ~sizeof(temp_string)~ is =6=, as it includes the final =\0= null-terminated character!!!
+
+
+A few things you still need to know:
+
+*** The var name =temp_string= itself still act like a pointer, it points to the first element of the char array.
+
+That's why the following code works:
+
+#+BEGIN_SRC c
+  //
+  // As that's a pointer, then you don't nee the `&` (address of) here
+  //
+  printf("\n>>> temp_string addr: %p", (void *)temp_string);
+
+  //
+  // As that's a pointer, it can be parsed as `char *`
+  //
+  printf("\n>>> temp_string: %s", temp_string);
+
+  //
+  // As that's a pointer, so you can do pointer arithmetic on it
+  //
+  printf("\n>>> temp_string substring: %s", temp_string+3);
+#+END_SRC
+
+
+Result:
+
+#+BEGIN_SRC c
+  >>> temp_string addr: 0x82067143a
+  >>> temp_string: 12345
+  >>> temp_string substring: 45
+#+END_SRC
+
+
+*** =temp_string= here is a stack-allocated variable, it's NOT a =string literal=
+
+Because it's a stack-allocated variable (not a string literal), you're able to modify it:
+
+#+BEGIN_SRC c
+  char * change_string(char *str) {
+          str[1] = 'A';
+      return str; 
+  }
+
+  const char *modified_string = change_string((char *)temp_string);
+  printf("\n>>> modified_string: %s", modified_string);
+#+END_SRC
+
+Result:
+
+#+BEGIN_SRC bash
+  >>> modified_string: 1A345 
+#+END_SRC
+
+
+** Define as a char pointer (=char *var = "strings"=)=, it also be known as =string literal= if you initialize as a given string
+
+
+#+BEGIN_SRC c
+  const char *temp_string = "12345";
+  printf("\n>>> temp_string, len: %lu, size: %zu, value: %s",
+         strlen(temp_string),
+         sizeof(temp_string),
+         temp_string);
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> temp_string, len: 5, size: 8, value: 12345
+#+END_SRC
+
+
+- ~strlen(temp_string)~ is =5=, as it doesn't count the final =\0= null-terminated character!!!
+
+- ~sizeof(temp_string)~ is =8=, as it's a =char *= (pointer, NOT =char []=), that's why you always get back =4= (4bytes on 32bit) or =8= (8bytes on 64bit)
+
+
+A few things you still need to know:
+
+*** =temp_string= here is a =string literal=!!!
+
+The value itself is stored in the binary read-only data section (still read-only after loading into memory), that's why you're NOT able to modify it:
+
+#+BEGIN_SRC c
+  char * change_string(char *str) {
+          str[1] = 'A';
+      return str; 
+  }
+
+  //
+  // It will crash on this line!!!
+  //
+  const char *modified_string = change_string(temp_string);
+  printf("\n>>> modified_string: %s", modified_string);
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  Segmentation fault (core dumped)
+#+END_SRC
