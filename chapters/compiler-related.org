@@ -73,6 +73,10 @@ Specify a function library to be used at =link= time. The rule is that if the li
 
 For example, the =math= library is =libm.a=, so you give =cc= the argument =-lm=.
 
+*** =-D<macroname>=<value>=
+
+Adds an implicit #define into the predefines buffer which is read before the source file is preprocessed.
+
 *** =-pedantic-errors=
 
 Error on language extensions. It requests to produce an error if a feature from a later standard revision is used in an earlier mode.
