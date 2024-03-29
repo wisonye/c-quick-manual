@@ -2,7 +2,7 @@
 
 Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
 
-** 1. Format float value with the given decimals
+** Format float value with the given decimals
 
 ~%.Xf~: =X= is the decimals count
 
@@ -19,7 +19,7 @@ Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
 #+END_SRC
 
 
-** 2. Format pointer
+** Format pointer
 
 ~%p~
 
@@ -34,7 +34,7 @@ Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
 #+END_SRC
 
 
-** 5. Format binary
+** Format binary
 
 - ~%b~
 - ~%B~
@@ -57,7 +57,7 @@ Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
 #+END_SRC
 
 
-** 6. Format HEX
+** Format HEX
 
 - ~%x~ (lowercase) or ~%X~ (uppercase)
 
@@ -79,7 +79,7 @@ Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
 #+END_SRC
 
 
-** 7. Format to the given buffer
+** Format to the given buffer
 
 ~snprintf~
 
@@ -104,51 +104,45 @@ Detail description: [[https://en.cppreference.com/w/c/io/fprintf][printf]]
 #+END_SRC
 
 
+** Format pointer address to uppercase HEX
 
-*** 7.1 Format to the given buffer but you don't know the size
-
-If you want to use ~std.fmt.bufPrint~ but you don't know how big the buffer is and you want the buffer size as small as possible.
-
-Then you can use ~std.fmt.allocPrint~, it calculates the size of the given format string and call ~std.fmt.bufPrint~ under the hood.
-
-#+BEGIN_SRC zig
-  const std = @import("std");
-  const Allocator = std.mem.Allocator;
-  const print = std.debug.print;
-
+#+BEGIN_SRC c
   ///
+  /// Return the given pointer address in uppercase HEX.
   ///
+  /// Return type is `char[19]`, that's because:
+  /// - Ponter size is maximum 8 bytes on 64bit
+  /// - 2bytes for the `0x` prefix
+  /// - 1byte for the endding '\0'
   ///
-  fn dynamic_print(allocator: Allocator) []const u8 {
-      const Person = struct {
-          first_name: []const u8,
-          last_name: []const u8,
-          age: u8,
-      };
+  typedef struct {
+      char address[19];
+  } PtrAddressUppercase;
 
-      const me = Person{
-          .first_name = "Wison",
-          .last_name = "Ye",
-          .age = 100,
-      };
+  PtrAddressUppercase ptr_address_uppercase(void *ptr) {
+      PtrAddressUppercase ptr_uppercase = {0};
+      snprintf(ptr_uppercase.address,
+               sizeof(ptr_uppercase.address),
+               "%p",
+               (void *)ptr);
+      ptr_uppercase.address[18] = '\0';
+      for (size_t index = 2; ptr_uppercase.address[index] != '\0' && index < 18;
+           index++) {
+          ptr_uppercase.address[index] = toupper(ptr_uppercase.address[index]);
+      }
 
-      // An internal buffer will be created via `allocator.alloc()`
-      return std.fmt.allocPrint(allocator, "Me: {}", .{me}) catch "";
+      return ptr_uppercase;
   }
 
-  ///
-  ///
-  ///
-  pub fn main() !void {
-      var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-      defer arena.deinit();
-      const allocator = arena.allocator();
-      {
-          const temp_str = dynamic_print(allocator);
-          print("\n>>> temp_str: {s}", .{temp_str});
-      }
+  int main(void) {
+        int int_value = 99;
+        printf("\n>>> int_value address: %s", ptr_address_uppercase(&int_value).address);
   }
 #+END_SRC
 
 
-Also, ~std.fmt.allocPrint~ is useful inside ~build.zig~, as you can use the ~b.allocator~ without caring about creating ~Allocator~ instance and freeing memory.
+Output:
+
+#+BEGIN_SRC bash
+  >>> int_value address: 0x820792D0C
+#+END_SRC
