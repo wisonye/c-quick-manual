@@ -1,0 +1,266 @@
+* Stack-allocated String
+
+** What's the problem you're facing
+
+One thing in =C= is challenging and complicated to handle is dealing with =String (a null-terminated sequence of characters)=, think about the following scenarios:
+
+*** Just handle the string but do not change it
+
+#+BEGIN_SRC c
+  void handle_string(const char *str);
+#+END_SRC
+
+This function says you want to handle a string from the outside world and should not change the original string. So, this would be an easy case, as you're not allowed to change the string.
+
+
+*** You need to modify the string
+
+To do that, usually, you have the following options:
+
+#+BEGIN_SRC c
+  char * modify_string(const char *str);
+  void modify_string(char *str);
+#+END_SRC
+
+The first function says that the caller passes in a =char pointer= and you might want to create a new copy based on the given string and return it, as you're not allowed to modify the original string.
+
+The second function says that the caller passes in a =char pointer= and you might want to modify it on top of it.
+
+It sounds very clear but both situations bring new concerns:
+
+- =NULL= checking
+
+- You have to create a heap-allocated string inside the function body and return newly created =char *=, as you can't return a stack-allocated string (=char *=) back to the caller function, it won't work. If you just want to return short string (a few bytes), then you still need to call =malloc= which might cost a performance concern.
+
+
+Also, same problem with the following functions:
+
+#+BEGIN_SRC c
+  char *create_string(void);
+  void init_string(char *new_string);
+#+END_SRC
+
+
+** How to solve that in an easy way
+
+If you want to handle a very short string (from a few bytes to under 512 bytes maybe?), heap-allocated string is not the ideal way to deal with that. =malloc= is slow and you have to remember to call =free= when you're done with the string.
+
+So, a stack-allocated string wrapper like below would be a good choice for all those cases.
+
+#+BEGIN_SRC c
+  typedef struct {
+      char data[64];
+  } StackString;
+
+  ///
+  /// Create from a given null-terminated string
+  ///
+  StackString SS_from_str(const char *str);
+
+  ///
+  /// Create from a given format string, format string and variadic argument list
+  /// will be type-checked at compile time.
+  ///
+  StackString SS_from_format_str(const char *fmt, ...);
+
+#+END_SRC
+
+From now on, you use a concrete type instead of a =char *=:
+
+#+BEGIN_SRC c
+  void print_stack_string(StackString ss);
+  StackString modify_string(const StackString str);
+  StackString create_string(void);
+#+END_SRC
+
+
+How to use it? Here is the example:
+
+#+BEGIN_SRC c
+  void print_stack_string(StackString ss) {
+      printf("\n>>> [ print_stack_string ] - value: %s", ss.data);
+  }
+
+  ///
+  ///
+  ///
+  int main(void) {
+      StackString temp_string = SS_from_str("hello");
+      printf("\n>>> temp_string: %s", temp_string.data);
+      print_stack_string(temp_string);
+  }
+#+END_SRC
+
+As everything is making a new struct copy, you don't need to worry about the =char *= issue anymore, as there is no pointer there, all stack-allocated variables there, they're will be created inside the function stack and destroyed automatically when they out of the function scope.
+
+But the =64= fixed-size is a problem, it's not difficult to fix that, here is the solution:
+
+#+BEGIN_SRC c
+  /*
+   ,* To compile `StackString`, you must pass `-DSTACK_STRING_SIZE=VALUE` as a
+   ,* compiler option!!!
+   ,*/
+  #ifndef __STACK_STRING_H__
+  #define __STACK_STRING_H__
+
+  //
+  // `STACK_STRING_SIZE` macro check
+  //
+  #ifndef STACK_STRING_SIZE
+      #error                                                                     \
+          "To compile `StackString`, you must pass `-DSTACK_STRING_SIZE=VALUE` as a compiler option!!!"
+  #endif
+
+  ///
+  /// A stack-allocated string type that always makes a copy or pass-by-value as a
+  /// function parameter, then you don't need to worry about the ownership issue.
+  /// It's aiming for short strings only, you should use heap-allocated string for
+  /// the long string.
+  ///
+  /// `STACK_STRING_SIZE` defines the maximum string buffer size, you must pass
+  /// `-DSTACK_STRING_SIZE=VALUE` as a compiler option!!!"
+  ///
+  typedef struct {
+      char data[STACK_STRING_SIZE];
+  } StackString;
+
+  #endif
+#+END_SRC
+
+
+So, you can provide the =-DSTACK_STRING_SIZE=VALUE= macro for different projects' needs:
+
+#+BEGIN_SRC bash
+  clang -DSTACK_STRING_SIZE=16 ...
+  clang -DSTACK_STRING_SIZE=32 ...
+  clang -DSTACK_STRING_SIZE=128 ...
+  clang -DSTACK_STRING_SIZE=256 ...
+  clang -DSTACK_STRING_SIZE=512 ...
+  ...
+#+END_SRC
+
+It's more flexiable now.
+
+Also, you can use =assert= to produce an error when the passing string is longer than =STACK_STRING_SIZE=, then you're easy to debug and increase your =STACK_STRING_SIZE= settings:
+
+#+BEGIN_SRC bash
+  Assertion failed: (str_size < STACK_STRING_SIZE), function SS_from_str, file /home/wison/c/temp-c/src/stack_string.c, line 14.
+
+  Abort trap (core dumped)
+#+END_SRC
+
+
+
+
+** Souce code
+
+*** =stack_string.h=
+
+#+BEGIN_SRC c
+  /*
+   ,* To compile `StackString`, you must pass `-DSTACK_STRING_SIZE=VALUE` as a
+   ,* compiler option!!!
+   ,*/
+  #ifndef __STACK_STRING_H__
+  #define __STACK_STRING_H__
+
+  //
+  // `STACK_STRING_SIZE` macro check
+  //
+  #ifndef STACK_STRING_SIZE
+      #error                                                                     \
+          "To compile `StackString`, you must pass `-DSTACK_STRING_SIZE=VALUE` as a compiler option!!!"
+  #endif
+
+  ///
+  /// A stack-allocated string type that always makes a copy or pass-by-value as a
+  /// function parameter, then you don't need to worry about the ownership issue.
+  /// It's aiming for short strings only, you should use heap-allocated string for
+  /// the long string.
+  ///
+  /// `STACK_STRING_SIZE` defines the maximum string buffer size, you must pass
+  /// `-DSTACK_STRING_SIZE=VALUE` as a compiler option!!!"
+  ///
+  typedef struct {
+      char data[STACK_STRING_SIZE];
+  } StackString;
+
+  ///
+  /// Create from a given null-terminated string
+  ///
+  StackString SS_from_str(const char *str);
+
+  ///
+  /// Create from a given format string, format string and variadic argument list
+  /// will be type-checked at compile time.
+  ///
+  StackString SS_from_format_str(const char *fmt, ...);
+
+  #endif
+ 
+#+END_SRC
+
+
+*** =stack_string.c=
+
+#+BEGIN_SRC c
+  #include "stack_string.h"
+
+  #include <assert.h>
+  #include <stdarg.h>
+  #include <stdio.h>
+  #include <string.h>
+
+  ///
+  /// Create from a given null-terminated string
+  ///
+  StackString SS_from_str(const char *str) {
+      StackString ss  = {0};
+      size_t str_size = strlen(str);
+      assert(str_size < STACK_STRING_SIZE);
+      memcpy(ss.data, str, str_size);
+      ss.data[str_size] = '\0';
+      return ss;
+  }
+
+  ///
+  /// Create from a given format string, format string and variadic argument list
+  /// will be type-checked at compile time.
+  ///
+  /// `format(printf, 1, 2)`:
+  ///
+  /// - `printf` means use `printf` to interpret the format string
+  /// - `1` means the argument position of the format string (start counting from
+  /// 1)
+  /// - `2` means the argument position of the variadic argument list
+  ///
+  __attribute__((format(printf, 1, 2))) StackString SS_from_format_str(
+      const char *fmt,
+      ...) {
+      StackString ss = {0};
+
+      va_list args;
+      va_start(args, fmt);
+      int written_count = vsnprintf(ss.data, STACK_STRING_SIZE, fmt, args);
+      printf("\n>>> written_count: %d", written_count);
+
+      //
+      // Check whether it is written or not
+      //
+      assert(written_count >= 0);
+
+      //
+      // Check whether copied the entire string or not
+      //
+      // It indicates how many characters should be written but it doesn't mean
+      // the "dest" buffer has enough space to write all characters (it will
+      // truncate the string!!!)
+      //
+      assert(written_count + 1 <= STACK_STRING_SIZE);
+
+      va_end(args);
+
+      return ss;
+  }
+#+END_SRC
+
