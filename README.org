@@ -12,6 +12,7 @@
 ** [[file:chapters/stack-allocated-string.org][Stack-allocated String]]
 ** [[file:chapters/macro.org][Macro]]
 ** [[file:chapters/error-handling.org][Error handling]]
+** [[file:chapters/dealing-with-bits.org][Dealing with bits]]
 ** [[file:chapters/compiler-related.org][Compiler related]]
 ** [[file:chapters/use-lldb-to-debug.org][Use lldb to debug your C program]]
 ** [[file:chapters/cmake.org][cmake]]

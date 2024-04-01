@@ -1,0 +1,311 @@
+* Dealing with bits
+
+** Binary and HEX table
+
+| Binary | Hex |
+|--------+-----|
+|   0001 |   1 |
+|   0010 |   2 |
+|   0011 |   3 |
+|   0100 |   4 |
+|   0101 |   5 |
+|   0110 |   6 |
+|   0111 |   7 |
+|   1000 |   8 |
+|   1001 |   9 |
+|   1010 |   A |
+|   1011 |   B |
+|   1100 |   C |
+|   1101 |   D |
+|   1110 |   E |
+|   1111 |  iF |
+
+
+** Bitwise operations
+
+Use value ~|= (1<< x)~ to set bit x to =1= (AKA: set a bit)
+Use value ~&= ~~(1<< x)~ to set bit x to =0= (AKA: clear a bit)
+Use value ~^= (1<< x)~ to =toggle= bit x (AKA: toggle/flip a bit)
+
+Example:
+
+#+BEGIN_SRC c
+  u8 byte = 0x95;
+  printf("\n>>> Original byte bits: \t%08b", byte);
+
+  byte |= 1 << 1;
+  printf("\n>>> After set bit1 to 1: \t%08b", byte);
+
+  byte ^= 1 << 1;
+  printf("\n>>> After toggle bit1: \t\t%08b", byte);
+
+  byte ^= 1 << 1;
+  printf("\n>>> After toggle bit1: \t\t%08b", byte);
+
+  byte &= ~(1 << 1);
+  printf("\n>>> After set bit1 to 0: \t%08b", byte);
+
+  byte &= ~(1 << 4);
+  printf("\n>>> After set bit4 to 0: \t%08b", byte);
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> Original byte bits:   10010101
+  >>> After set bit1 to 1:  10010111
+  >>> After toggle bit1:    10010101
+  >>> After toggle bit1:    10010111
+  >>> After set bit1 to 0:  10010101
+  >>> After set bit4 to 0:  10000101
+#+END_SRC
+
+
+** Check bits
+
+*** Check bitX is =1= or not
+
+#+BEGIN_SRC c
+  #define BIT_IS_1(V, WHICH_BIT) ((V & (1 << WHICH_BIT)) && (1 << WHICH_BIT))
+
+  u8 byte = 0x95;
+  printf("\n>>> Original byte bits: %08b", byte);
+  printf("\n>>> bit0 is 1: %s", BIT_IS_1(byte, 0) == true ? "Yes" : "No");
+  printf("\n>>> bit1 is 1: %s", BIT_IS_1(byte, 1) == true ? "Yes" : "No");
+  printf("\n>>> bit2 is 1: %s", BIT_IS_1(byte, 2) == true ? "Yes" : "No");
+  printf("\n>>> bit3 is 1: %s", BIT_IS_1(byte, 3) == true ? "Yes" : "No");
+  printf("\n>>> bit4 is 1: %s", BIT_IS_1(byte, 4) == true ? "Yes" : "No");
+  printf("\n>>> bit5 is 1: %s", BIT_IS_1(byte, 5) == true ? "Yes" : "No");
+  printf("\n>>> bit6 is 1: %s", BIT_IS_1(byte, 6) == true ? "Yes" : "No");
+  printf("\n>>> bit7 is 1: %s", BIT_IS_1(byte, 7) == true ? "Yes" : "No");
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> Original byte bits: 10010101
+  >>> bit0 is 1: Yes
+  >>> bit1 is 1: No
+  >>> bit2 is 1: Yes
+  >>> bit3 is 1: No
+  >>> bit4 is 1: Yes
+  >>> bit5 is 1: No
+  >>> bit6 is 1: No
+  >>> bit7 is 1: Yes
+#+END_SRC
+
+
+*** Check bitX is =0= or not
+
+#+BEGIN_SRC c
+  #define BIT_IS_0(V, WHICH_BIT)                                                 \
+     (((V ^ (1 << WHICH_BIT)) & (1 << WHICH_BIT)) && (1 << WHICH_BIT))
+
+   u8 byte = 0xA4;
+   printf("\n>>> Original byte bits: %08b", byte);
+   printf("\n>>> bit0 is 0: %s", BIT_IS_0(byte, 0) == true ? "Yes" : "No");
+   printf("\n>>> bit1 is 0: %s", BIT_IS_0(byte, 1) == true ? "Yes" : "No");
+   printf("\n>>> bit2 is 0: %s", BIT_IS_0(byte, 2) == true ? "Yes" : "No");
+   printf("\n>>> bit3 is 0: %s", BIT_IS_0(byte, 3) == true ? "Yes" : "No");
+   printf("\n>>> bit4 is 0: %s", BIT_IS_0(byte, 4) == true ? "Yes" : "No");
+   printf("\n>>> bit5 is 0: %s", BIT_IS_0(byte, 5) == true ? "Yes" : "No");
+   printf("\n>>> bit6 is 0: %s", BIT_IS_0(byte, 6) == true ? "Yes" : "No");
+   printf("\n>>> bit7 is 0: %s", BIT_IS_0(byte, 7) == true ? "Yes" : "No");
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> Original byte bits: 10100100
+  >>> bit0 is 0: Yes
+  >>> bit1 is 0: Yes
+  >>> bit2 is 0: No
+  >>> bit3 is 0: Yes
+  >>> bit4 is 0: Yes
+  >>> bit5 is 0: No
+  >>> bit6 is 0: Yes
+  >>> bit7 is 0: No
+#+END_SRC
+
+
+** Use bit in struct
+
+*** Normal version
+
+#+BEGIN_SRC c
+  typedef struct {
+      bool gpio;
+      bool adc;
+      bool i2c;
+      bool spi;
+  } ResetReg;
+
+#+END_SRC
+
+The structure above try represents 4 boolean values,  but it consumes =4= bytes which is enough to represent =32= boolean values if only use =1= bit to represent =true= or =false=!!!
+
+Here is the prove to show it takes 4 bytes:
+
+#+BEGIN_SRC c
+  void ResetReg_debug_print(const ResetReg *self) {
+      printf("\n>>> [ ResetReg ] - byte size: %zu {\n\tgpio: %s\n\tadc : "
+             "%s\n\ti2c: %s\n\tspi: "
+             "%s\n}",
+             sizeof(typeof(self)),
+             self->gpio ? "Enabled" : "Disabled",
+             self->adc ? "Enabled" : "Disabled",
+             self->i2c ? "Enabled" : "Disabled",
+             self->spi ? "Enabled" : "Disabled");
+  }
+
+  ResetReg reg = (ResetReg) {
+      .gpio = true,
+      .adc  = false,
+      .i2c  = false,
+      .spi  = true,
+  };
+  printf("\n>>> reg size: %zu", sizeof(reg));
+  ResetReg_debug_print(&reg);
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >> reg size: 4
+  >>> [ ResetReg ] - byte size: 1 {
+          gpio: Enabled
+          adc : Disabled
+          i2c: Disabled
+          spi: Enabled
+  }
+#+END_SRC
+
+
+*** Bit version
+
+#+BEGIN_SRC c
+  typedef struct __attribute__((packed)) {
+      bool gpio : 1;
+      bool adc : 1;
+      bool i2c : 1;
+      bool spi : 1;
+  } ResetReg;
+#+END_SRC
+
+Now, it only takes =1= byte (4 bits used, 4 bits left):
+
+#+BEGIN_SRC c
+  void ResetReg_debug_print(const ResetReg *self) {
+      printf("\n>>> [ ResetReg ] - byte size: %zu {\n\tgpio: %s\n\tadc : "
+             "%s\n\ti2c: %s\n\tspi: "
+             "%s\n}",
+             sizeof(typeof(self)),
+             self->gpio ? "Enabled" : "Disabled",
+             self->adc ? "Enabled" : "Disabled",
+             self->i2c ? "Enabled" : "Disabled",
+             self->spi ? "Enabled" : "Disabled");
+  }
+
+  ResetReg reg = (ResetReg) {
+      .gpio = true,
+      .adc  = false,
+      .i2c  = false,
+      .spi  = true,
+  };
+  printf("\n>>> reg size: %zu", sizeof(reg));
+  ResetReg_debug_print(&reg);
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> reg size: 1
+  >>> [ ResetReg ] - byte size: 8 {
+          gpio: Enabled
+          adc : Disabled
+          i2c: Disabled
+          spi: Enabled
+  }
+#+END_SRC
+
+
+Also, the extra benefit (or say the weird but powerful thing about using bits in a struct) is that you're able to assign an integer value to set all the struct fields in one shoot!!!
+
+For example:
+
+#+BEGIN_SRC c
+  ResetReg reg = (ResetReg) {
+      .gpio = true,
+      .adc  = true,
+      .i2c  = false,
+      .spi  = true,
+  };
+  printf("\n>>> reg size: %zu", sizeof(reg));
+  ResetReg_debug_print(&reg);
+
+	PRINT_MEMORY_BLOCK(ResetReg, reg);
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> reg size: 1
+  >>> [ ResetReg ] - byte size: 8 {
+          gpio: Enabled
+          adc : Enabled
+          i2c: Disabled
+          spi: Enabled
+  }
+  (D) [ Memory ] > print_memory_block - [ ResetReg reg, size: 1 ]
+  (D) [ Memory ] > print_memory_block - --
+  (D) [ Memory ] > print_memory_block - 0B
+  (D) [ Memory ] > print_memory_block - --
+#+END_SRC
+
+As you can see the memory layout of the =ResetReg= struct instance above, that HEX =0x0B= ( binary =1011= ), the reverse layout of the =ResetReg= field layout.
+
+That mean you're able to assign =0x04= ( binary =0100=) to get back the following field settings:
+
+#+BEGIN_SRC c
+  >>> [ ResetReg ] - byte size: 8 {
+          gpio: Disabled  // 0
+          adc : Disabled  // 0
+          i2c: Enabled    // 1
+          spi: Disabled   // 0
+  }
+#+END_SRC
+
+
+Let's give it a try:
+
+#+BEGIN_SRC c
+  ResetReg reg = {0};
+
+	//
+	// Get back the pointer
+	//
+	ResetReg *ptr = &reg;
+
+	//
+	// Force convert to the byte pointer type and assign the byte value!!!
+	//
+	*((u8 *)ptr) = 0x04;
+
+  ResetReg_debug_print(&reg);
+	PRINT_MEMORY_BLOCK(ResetReg, reg);
+#+END_SRC
+
+#+BEGIN_SRC bash
+  >>> [ ResetReg ] - byte size: 8 {
+          gpio: Disabled
+          adc : Disabled
+          i2c: Enabled
+          spi: Disabled
+  }
+  (D) [ Memory ] > print_memory_block - [ ResetReg reg, size: 1 ]
+  (D) [ Memory ] > print_memory_block - --
+  (D) [ Memory ] > print_memory_block - 04
+  (D) [ Memory ] > print_memory_block - --
+#+END_SRC
+
