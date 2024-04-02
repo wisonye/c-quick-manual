@@ -1,4 +1,4 @@
-* Data synchronization - Mutex
+* Data race - Mutex
 
 ** What is =Data race=
 
@@ -13,6 +13,8 @@ To prevent this, threading APIs offer synchronization primitives such as =mutexe
 
 =Mutex= is used to protect shared resources across different threads, here is the regular pattern using mutex:
 
+*** Create =Mutex= instance
+  
 #+BEGIN_SRC c
   #include <string.h>
 
@@ -22,14 +24,14 @@ To prevent this, threading APIs offer synchronization primitives such as =mutexe
   //
   pthread_mutex_t mutex;
   pthread_mutex_init(&instance.internal_mutex, NULL);
+#+END_SRC
 
-  //
-  // Inside thread function, wrap the code inside the mutex lock, you have 2 options:
-  //
 
-  //
-  // Option 1: Block until lock successfully
-  //
+*** Inside =Thread Function=, wrap the code inside the mutex lock, you have 2 options:
+
+**** Option 1: Block until lock successfully
+  
+#+BEGIN_SRC c
   int lock_result = pthread_mutex_lock(&self->internal_mutex) ;
   if (lock_result == 0) {
       // ...
@@ -45,10 +47,12 @@ To prevent this, threading APIs offer synchronization primitives such as =mutexe
              lock_result,
              strerror(lock_result));
   }
+#+END_SRC
 
-  //
-  // Option 2: Block until lock successfully or timeout
-  //
+
+**** Option 2: Block until lock successfully or timeout
+
+#+BEGIN_SRC c
   struct timespec timeout = {0};
   clock_gettime(CLOCK_REALTIME, &timeout);
   timeout.tv_nsec += 500 * 1'000'000; // e.g. wait for 500 milliseconds
@@ -68,17 +72,19 @@ To prevent this, threading APIs offer synchronization primitives such as =mutexe
           lock_result,
           strerror(lock_result));
   }
+#+END_SRC
 
-  //
-  // Destroy it when you're done.
-  //
+
+*** Destroy it when you're done.
+
+#+BEGIN_SRC c
   pthread_mutex_destroy(&mutex);
 #+END_SRC
 
 
-One more thing about =Mutex=:
+** One more thing about =Mutex=
 
-=Mutex= focuses on correctness more than performance, as that's an exclusive lock no matter whether you only need to read or write.
+=Mutex= focuses on correctness more than performance, as that's an exclusive lock no matter whether you only need to read or write!!!
 
 If =more read less write= is your case, then you should use =ReadWriteLock= instead of =Mutex=.
 
