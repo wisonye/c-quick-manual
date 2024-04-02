@@ -1,0 +1,581 @@
+* Data race - ReadWriteLock
+
+** What is =Data race=
+
+When multiple thread instances run the same function, and different function codes try to access or modify the shared data, it will cause a =Data Race=.
+
+That's why you need to do something to protect the shared data (between threads) to prevent multi-threading data race bugs.
+
+To prevent this, threading APIs offer synchronization primitives such as =mutexes= to lock data structures against concurrent access.
+
+
+** How =ReadWriteLock= can help?
+
+=ReadWriteLock= is used to protect shared resources across different threads with the =more read less write= use case, here is the regular pattern using =ReadWriteLock=:
+
+*** Create =ReadWriteLock= instance
+  
+#+BEGIN_SRC c
+  #include <string.h>
+
+  //
+  // Init default attributes for the ReadWriteLock
+  //
+  pthread_rwlockattr_t rwlock_attribute = {0};
+  if (pthread_rwlockattr_init(&rwlock_attribute) != 0) {
+      perror("\n>>> Init rwlock attribute failed: ");
+      return -1;
+  }
+
+  //
+  // Create a ReadWriteLock instance.
+  // If you pass `NULL` to the second parameter, use the default mutex
+  // attribute to create a ReadWriteLock instance.
+  //
+  pthread_rwlock_t rwlock = {0};
+  pthread_rwlock_init(&rwlock, &rwlock_attribute);
+
+  //
+  // Once a ReadWriteLock has been created, the attribute is no longer needed,
+  // destroy it.
+  //
+  pthread_rwlockattr_destroy(&rwlock_attribute);
+#+END_SRC
+
+
+*** Inside =Thread Function=, wrap the code inside the =ReadWriteLock= lock, you have 2 options:
+
+**** Option 1: Block until lock successfully
+  
+#+BEGIN_SRC c
+  //
+  // Read lock protection
+  //
+  int read_lock_result =  pthread_rwlock_rdlock(&rwlock) ;
+  if (read_lock_result == 0) {
+      // ...
+      // It's safe to read the protected shared resources here.
+      // ...
+
+      //
+      // Make sure to release the lock!!!
+      //
+      pthread_rwlock_unlock(&rwlock);
+  } else {
+      printf("\n>>> Try to acquire read lock failed, error no: %d, error messge: %s",
+             read_lock_result,
+             strerror(read_lock_result));
+  }
+
+  //
+  // Write lock protection
+  //
+  int write_lock_result =  pthread_rwlock_wrlock(&rwlock) ;
+  if (write_lock_result == 0) {
+      // ...
+      // It's safe to write the protected shared resources here.
+      // ...
+
+      //
+      // Make sure to release the lock!!!
+      //
+      pthread_rwlock_unlock(&rwlock);
+  } else {
+      printf("\n>>> Try to acquire write lock failed, error no: %d, error messge: %s",
+             write_lock_result,
+             strerror(write_lock_result));
+  }
+#+END_SRC
+
+
+**** Option 2: Try to acquire a read lock or a write lock without blocking
+  
+#+BEGIN_SRC c
+  //
+  // Read lock protection, will fail if another thread has held a write lock
+  //
+  int read_lock_result =  pthread_rwlock_tryrdlock(&rwlock) ;
+  if (read_lock_result == 0) {
+      // ...
+      // It's safe to read the protected shared resources here.
+      // ...
+
+      //
+      // Make sure to release the lock!!!
+      //
+      pthread_rwlock_unlock(&rwlock);
+  } else {
+      printf("\n>>> Try to acquire read lock failed, error no: %d, error messge: %s",
+             read_lock_result,
+             strerror(read_lock_result));
+  }
+
+  //
+  // Write lock protection, will fail if another thread has held a write lock
+  //
+  int write_lock_result =  pthread_rwlock_trywrlock(&rwlock) ;
+  if (write_lock_result == 0) {
+      // ...
+      // It's safe to write the protected shared resources here.
+      // ...
+
+      //
+      // Make sure to release the lock!!!
+      //
+      pthread_rwlock_unlock(&rwlock);
+  } else {
+      printf("\n>>> Try to acquire write lock failed, error no: %d, error messge: %s",
+             write_lock_result,
+             strerror(write_lock_result));
+  }
+#+END_SRC
+
+In the real world, you should combine "while loop with sleep() call and max try count" instead of only trying once!!!
+
+
+*** Destroy it when you're done.
+
+#+BEGIN_SRC c
+  pthread_rwlock_destroy(&rwlock);
+#+END_SRC
+
+
+
+** Example
+
+#+BEGIN_SRC c
+  #include <errno.h>
+  #include <pthread.h>
+  #include <stdint.h>
+  #include <stdio.h>
+  #include <string.h>
+  #include <unistd.h>
+
+  typedef size_t usize;
+
+  #define MAX_SESSION_COUNT  20
+  #define INIT_SESSION_COUNT 10
+  #define THREAD_COUNT       5
+
+  ///
+  ///
+  ///
+  typedef struct {
+      usize sid;
+      usize data;
+  } Session;
+
+  void Session_print(const Session *self) {
+      if (self == NULL) {
+          printf("\n>>> [ Session_print ] - NULL");
+      } else {
+          printf("\n>>> [ Session_print ] - { sid: %08zu, data: %08zu }",
+                 self->sid,
+                 self->data);
+      }
+  }
+
+  ///
+  ///
+  ///
+  typedef struct {
+      Session list[MAX_SESSION_COUNT];
+  } SessionList;
+
+  ///
+  SessionList SL_init(void) {
+      SessionList instance = {0};
+
+      usize base_sid = 1001;
+      for (usize index = 0; index < INIT_SESSION_COUNT; index++) {
+          instance.list[index] =
+              (Session){.sid = base_sid + index, .data = base_sid + index};
+      }
+
+      return instance;
+  }
+
+  ///
+  const Session *SL_query_by_sid(const SessionList *self, usize sid) {
+      Session *matched_session = NULL;
+      for (usize index = 0; index < MAX_SESSION_COUNT; index++) {
+          if (self->list[index].sid == sid) {
+              return &self->list[index];
+          }
+      }
+
+      return matched_session;
+  }
+
+  ///
+  usize SL_insert_or_update(SessionList *self, usize sid, usize data) {
+      Session *matched_session  = NULL;
+      usize found_session_index = 0;
+      usize new_session_index   = 0;
+      for (usize index = 0; index < MAX_SESSION_COUNT; index++) {
+          //
+          // Found existing session
+          //
+          if (self->list[index].sid == sid) {
+              matched_session     = &self->list[index];
+              found_session_index = index;
+              break;
+          }
+          //
+          // Not found, create new session at new slot
+          //
+          else if (self->list[index].sid == 0) {
+              new_session_index = index;
+              break;
+          }
+      }
+
+      if (matched_session != NULL) {
+          matched_session->data = data;
+          return found_session_index;
+      } else {
+          self->list[new_session_index].sid  = sid;
+          self->list[new_session_index].data = data;
+          return new_session_index;
+      }
+  }
+
+  ///
+  void SL_debug_print(const SessionList *self) {
+      printf("\n>>> [ SL_debug_print ]");
+      for (usize index = 0; index < MAX_SESSION_COUNT; index++) {
+          printf("\n>>> [%03zu] sid: %08zu, data: %08zu",
+                 index,
+                 self->list[index].sid,
+                 self->list[index].data);
+      }
+  }
+
+  ///
+  /// Thread funciton must take a `*void` as parameter and return a `*void`
+  ///
+  typedef struct {
+      bool is_update_action;
+      usize thread_id;
+      usize query_sid;
+      usize update_data;
+      SessionList *sessions;
+      pthread_rwlock_t *read_write_lock;
+  } TaskData;
+
+  void *run_task(void *state) {
+      TaskData *task_data = ((TaskData *)state);
+
+      //
+      // Update action
+      //
+      if (task_data->is_update_action) {
+          printf("\n>>> [ UpdateTask ] - thread %zu is running...... (sid: %zu, "
+                 "update_data: %zu)",
+                 task_data->thread_id,
+                 task_data->query_sid,
+                 task_data->update_data);
+          int write_lock_result =
+              pthread_rwlock_wrlock(task_data->read_write_lock);
+          if (write_lock_result == 0) {
+              // ...
+              // It's safe to write the protected shared resources here.
+              // ...
+
+              usleep(1000 * 1000);
+
+              const usize update_index =
+                  SL_insert_or_update(task_data->sessions,
+                                      task_data->query_sid,
+                                      task_data->update_data);
+
+              printf("\n>>> [ UpdateTask ] - thread %zu update_index: %zu",
+                     task_data->thread_id,
+                     update_index);
+              //
+              // Make sure to release the lock!!!
+              //
+              pthread_rwlock_unlock(task_data->read_write_lock);
+          } else {
+              printf("\n>>> [ UpdateTask ] - thread %zu tries to acquire write "
+                     "lock failed, error no: %d, "
+                     "error messge: %s",
+                     task_data->thread_id,
+                     write_lock_result,
+                     strerror(write_lock_result));
+          }
+
+          printf("\n>>> [ UpdateTask ] - thread %zu is done.",
+                 task_data->thread_id);
+      }
+      //
+      // Query action
+      //
+      else {
+          printf("\n>>> [ QueryTask ] - thread %zu is running...... (query sid: "
+                 "%zu)",
+                 task_data->thread_id,
+                 task_data->query_sid);
+
+          int read_lock_result =
+              pthread_rwlock_rdlock(task_data->read_write_lock);
+          if (read_lock_result == 0) {
+              // ...
+              // It's safe to read the protected shared resources here.
+              // ...
+
+              usleep(200 * 1000);
+
+              const Session *found_session =
+                  SL_query_by_sid(task_data->sessions, task_data->query_sid);
+
+              if (found_session == NULL) {
+                  printf("\n>>> [ QueryTask ] - thread %zu found_session: NULL",
+                         task_data->thread_id);
+              } else {
+                  printf("\n>>> [ QueryTask ] - thread %zu found_session: { sid: "
+                         "%zu, "
+                         "data: %zu}",
+                         task_data->thread_id,
+                         found_session->sid,
+                         found_session->data);
+              }
+              //
+              // Make sure to release the lock!!!
+              //
+              pthread_rwlock_unlock(task_data->read_write_lock);
+          } else {
+              printf("\n>>> [ QueryTask ] - thread %zu tries to acquire read "
+                     "lock failed, error no: %d, error "
+                     "messge: %s",
+                     task_data->thread_id,
+                     read_lock_result,
+                     strerror(read_lock_result));
+          }
+
+          printf("\n>>> [ QueryTask ] - thread %zu is done.",
+                 task_data->thread_id);
+      }
+
+      return NULL;
+  }
+
+  ///
+  ///
+  ///
+  int main(void) {
+      SessionList sessions = SL_init();
+      SL_debug_print(&sessions);
+          printf("\n");
+
+      //
+      // Init default attributes for the ReadWriteLock
+      //
+      pthread_rwlockattr_t rwlock_attribute = {0};
+      if (pthread_rwlockattr_init(&rwlock_attribute) != 0) {
+          perror("\n>>> Init rwlock attribute failed: ");
+          return -1;
+      }
+
+      //
+      // Create a ReadWriteLock instance.
+      // If you pass `NULL` to the second parameter, use the default mutex
+      // attribute to create a ReadWriteLock instance.
+      //
+      pthread_rwlock_t rwlock = {0};
+      pthread_rwlock_init(&rwlock, &rwlock_attribute);
+
+      //
+      // Once a ReadWriteLock has been created, the attribute is no longer needed,
+      // destroy it.
+      //
+      pthread_rwlockattr_destroy(&rwlock_attribute);
+
+      pthread_t threads[THREAD_COUNT] = {0};
+      pthread_attr_t thread_attr      = {0};
+
+      //
+      // Get back the default thread attribute, it can be re-used to create
+      // one or more thread instances.
+      //
+      if (pthread_attr_init(&thread_attr) != 0) {
+          perror("\n>>> Init thread attribute failed: ");
+          return -1;
+      }
+
+      TaskData states[THREAD_COUNT] = {
+          (TaskData){
+              .thread_id        = 0,
+              .is_update_action = false,
+              .query_sid        = 1008,
+              .update_data      = 0,
+              .sessions         = &sessions,
+              .read_write_lock  = &rwlock,
+          },
+          (TaskData){
+              .thread_id        = 0,
+              .is_update_action = true,
+              .query_sid        = 1008,
+              .update_data      = 8888,
+              .sessions         = &sessions,
+              .read_write_lock  = &rwlock,
+          },
+          (TaskData){
+              .thread_id        = 0,
+              .is_update_action = true,
+              .query_sid        = 1008,
+              .update_data      = 9999,
+              .sessions         = &sessions,
+              .read_write_lock  = &rwlock,
+          },
+          (TaskData){
+              .thread_id        = 0,
+              .is_update_action = true,
+              .query_sid        = 1008,
+              .update_data      = 12345,
+              .sessions         = &sessions,
+              .read_write_lock  = &rwlock,
+          },
+          (TaskData){
+              .thread_id        = 0,
+              .is_update_action = false,
+              .query_sid        = 1008,
+              .update_data      = 0,
+              .sessions         = &sessions,
+              .read_write_lock  = &rwlock,
+          },
+      };
+
+      for (int index = 0; index < THREAD_COUNT; index++) {
+          //
+          // Save thread function parameter
+          //
+          states[index].thread_id = index + 1;
+
+          //
+          // Create new threads
+          //
+          int create_result = pthread_create(
+              //
+              // Pointer to `pthread *`
+              //
+              &threads[index],
+              //
+              // Pointer to `pthread_attr *`
+              //
+              // You also can pass `NULL` here for using the default thread
+              // attribute
+              //
+              &thread_attr,
+              //
+              // Share thread funciton
+              //
+              run_task,
+              //
+              // Parameter that passes into the thread function
+              //
+              (void *)&states[index]);
+
+          if (create_result != 0) {
+              fprintf(stderr,
+                      "Failed to create thread %zu",
+                      states[index].thread_id);
+          }
+      }
+
+      //
+      // Once a thread has been created, the thread attribute is no
+      // longer needed, destroy it
+      //
+      pthread_attr_destroy(&thread_attr);
+
+      printf("\n>>> [ main ] - All threads should be running in background.");
+
+      //
+      // Wait for the result
+      //
+      for (int index = 0; index < THREAD_COUNT; index++) {
+          int join_result = pthread_join(threads[index], NULL);
+
+          if (join_result != 0) {
+              fprintf(stderr,
+                      "Failed to join thread with parameter: %zu",
+                      states[index].thread_id);
+          }
+      }
+      pthread_rwlock_destroy(&rwlock);
+
+      printf("\n\n>>> SessionList after all threads have been done.");
+      SL_debug_print(&sessions);
+
+      printf("\n>>> [ main ] - Done.");
+  }
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> [ SL_debug_print ]
+  >>> [000] sid: 00001001, data: 00001001
+  >>> [001] sid: 00001002, data: 00001002
+  >>> [002] sid: 00001003, data: 00001003
+  >>> [003] sid: 00001004, data: 00001004
+  >>> [004] sid: 00001005, data: 00001005
+  >>> [005] sid: 00001006, data: 00001006
+  >>> [006] sid: 00001007, data: 00001007
+  >>> [007] sid: 00001008, data: 00001008
+  >>> [008] sid: 00001009, data: 00001009
+  >>> [009] sid: 00001010, data: 00001010
+  >>> [010] sid: 00000000, data: 00000000
+  >>> [011] sid: 00000000, data: 00000000
+  >>> [012] sid: 00000000, data: 00000000
+  >>> [013] sid: 00000000, data: 00000000
+  >>> [014] sid: 00000000, data: 00000000
+  >>> [015] sid: 00000000, data: 00000000
+  >>> [016] sid: 00000000, data: 00000000
+  >>> [017] sid: 00000000, data: 00000000
+  >>> [018] sid: 00000000, data: 00000000
+  >>> [019] sid: 00000000, data: 00000000
+
+  >>> [ UpdateTask ] - thread 3 is running...... (sid: 1008, update_data: 9999)
+  >>> [ QueryTask ] - thread 1 is running...... (query sid: 1008)
+  >>> [ UpdateTask ] - thread 4 is running...... (sid: 1008, update_data: 12345)
+  >>> [ UpdateTask ] - thread 2 is running...... (sid: 1008, update_data: 8888)
+  >>> [ main ] - All threads should be running in background.
+  >>> [ QueryTask ] - thread 5 is running...... (query sid: 1008)
+  >>> [ UpdateTask ] - thread 3 update_index: 7
+  >>> [ UpdateTask ] - thread 3 is done.
+  >>> [ UpdateTask ] - thread 4 update_index: 7
+  >>> [ UpdateTask ] - thread 4 is done.
+  >>> [ UpdateTask ] - thread 2 update_index: 7 // Last update task works: 8888
+  >>> [ UpdateTask ] - thread 2 is done.
+  >>> [ QueryTask ] - thread 1 found_session: { sid: 1008, data: 8888}
+  >>> [ QueryTask ] - thread 1 is done.
+  >>> [ QueryTask ] - thread 5 found_session: { sid: 1008, data: 8888}
+  >>> [ QueryTask ] - thread 5 is done.
+
+  >>> SessionList after all threads have been done.
+  >>> [ SL_debug_print ]
+  >>> [000] sid: 00001001, data: 00001001
+  >>> [001] sid: 00001002, data: 00001002
+  >>> [002] sid: 00001003, data: 00001003
+  >>> [003] sid: 00001004, data: 00001004
+  >>> [004] sid: 00001005, data: 00001005
+  >>> [005] sid: 00001006, data: 00001006
+  >>> [006] sid: 00001007, data: 00001007
+  >>> [007] sid: 00001008, data: 00008888 // Updated by last update task thread
+  >>> [008] sid: 00001009, data: 00001009
+  >>> [009] sid: 00001010, data: 00001010
+  >>> [010] sid: 00000000, data: 00000000
+  >>> [011] sid: 00000000, data: 00000000
+  >>> [012] sid: 00000000, data: 00000000
+  >>> [013] sid: 00000000, data: 00000000
+  >>> [014] sid: 00000000, data: 00000000
+  >>> [015] sid: 00000000, data: 00000000
+  >>> [016] sid: 00000000, data: 00000000
+  >>> [017] sid: 00000000, data: 00000000
+  >>> [018] sid: 00000000, data: 00000000
+  >>> [019] sid: 00000000, data: 00000000
+  >>> [ main ] - Done.
+#+END_SRC

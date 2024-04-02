@@ -20,7 +20,7 @@
 ** [[file:chapters/multithreading.org][Multi-threading]]
 *** [[file:chapters/create-new-thread.org][Create new thread and wait for it to finish]]
 *** [[file:chapters/mutexes.org][Data race - Mutex]]
-Data race - ReadWriteLock
+*** [[file:chapters/readwrite-lock.org][Data race - ReadWriteLock]]
 ** How to
 *** [[file:chapters/how-to-deal-with-valist.org][How to deal with flexible parameter list: va_list]]
 *** [[file:chapters/how-to-generate-random-numbers.org][How to generate random numbers]]
