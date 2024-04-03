@@ -508,33 +508,31 @@ Let's do it:
   // Generic (result type) struct
   //
   typedef struct {
-      _Bool success;
-      MY_RESULT_SUCCESS_TYPE *ok;
-      MY_RESULT_ERROR_TYPE *err;
+      bool success;
+      MY_RESULT_SUCCESS_TYPE ok;
+      MY_RESULT_ERROR_TYPE err;
   } MY_RESULT_TYPE;
 
   //
   // Similar to `Result::Ok(T)` and allocate on the heap
   //
-  MY_RESULT_TYPE *MY_RESULT_METHOD(Ok)(MY_RESULT_SUCCESS_TYPE *ok) {
-      MY_RESULT_TYPE *r = malloc(sizeof(MY_RESULT_TYPE));
-      r->success = true;
-      r->ok = ok;
-      r->err = NULL;
-
-      return r;
+  MY_RESULT_TYPE MY_RESULT_METHOD(Ok)(MY_RESULT_SUCCESS_TYPE ok) {
+      return (MY_RESULT_TYPE) {
+  		.success = true,
+  		.ok = ok,
+  		.err = 0,
+      };
   }
 
   //
   // Similar to `Result::Err(T)` and allocate on the heap
   //
-  MY_RESULT_TYPE *MY_RESULT_METHOD(Err)(MY_RESULT_ERROR_TYPE *err) {
-      MY_RESULT_TYPE *r = malloc(sizeof(MY_RESULT_TYPE));
-      r->success = false;
-      r->ok = NULL;
-      r->err = err;
-
-      return r;
+  MY_RESULT_TYPE MY_RESULT_METHOD(Err)(MY_RESULT_ERROR_TYPE err) {
+      return (MY_RESULT_TYPE) {
+  		.success = false,
+  		.ok = 0,
+  		.err = err
+      };
   }
 
   #undef MY_RESULT_TYPE
@@ -602,23 +600,59 @@ Here is the example to show it:
 
 #+BEGIN_SRC c
   #define MY_RESULT_TYPE EndpointApiResult
-  #define MY_RESULT_SUCCESS_TYPE char
+  #define MY_RESULT_SUCCESS_TYPE const char *
   #define MY_RESULT_ERROR_TYPE uint16_t
 
   #include "utils/result.h"
 
-  char *success_result = "Got something back:)";
-  uint16_t fail_result = 404;
+  const char *success_result = "Got something back:)";
+  uint16_t fail_result = 500;
 
   //
-  EndpointApiResult *simulate_call_api_success(_Bool simulate_success) {
+  EndpointApiResult simulate_call_api_success(bool simulate_success) {
       EndpointApiResult *result = (simulate_success)
                                       ? EndpointApiResult_Ok(success_result)
-                                      : EndpointApiResult_Err(&fail_result);
+                                      : EndpointApiResult_Err(fail_result);
 
       return result;
   }
+
+  ///
+  ///
+  ///
+  int main(void) {
+      EndpointApiResult result = simulate_call_api_success(true);
+      printf("\n>>> [ EnadPointApiResult ] - {\n\tsuccess: %s,\n\tok: "
+             "%s,\n\terr: %u\n}",
+             result.success ? "Yes" : "No",
+             result.ok,
+             result.err);
+  
+      result = simulate_call_api_success(false);
+      printf("\n>>> [ EnadPointApiResult ] - {\n\tsuccess: %s,\n\tok: "
+             "%s,\n\terr: %u\n}",
+             result.success ? "Yes" : "No",
+             result.ok,
+             result.err);
+  }
 #+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> [ EnadPointApiResult ] - {
+  	success: Yes,
+  	ok: Got something back:),
+  	err: 0
+  }
+  >>> [ EnadPointApiResult ] - {
+  	success: No,
+  	ok: (null),
+  	err: 500
+  }
+#+END_SRC
+
+
 
 As you can see above, a few things to pay attention to :
 
@@ -629,52 +663,24 @@ As you can see above, a few things to pay attention to :
     You can run the =CC -E src/result_demo.c= to see the preprocessor result:
 
     #+BEGIN_SRC c
-        typedef struct {
-            _Bool success;
-            char *ok;
-            uint16_t *err;
-        } EndpointApiResult;
+      typedef struct {
+          bool success;
+          const char *ok;
+          uint16_t err;
+      } EndpointApiResult;
 
-        EndpointApiResult *EndpointApiResult_Ok(char *ok) {
-            EndpointApiResult *r = malloc(sizeof(EndpointApiResult));
-            r->success = 1;
-            r->ok = ok;
-            r->err = ((void*)0);
+      EndpointApiResult EndpointApiResult_Ok(const char *ok) {
+          return (EndpointApiResult){
+              .success = true,
+              .ok      = ok,
+              .err     = 0,
+          };
+      }
 
-            return r;
-        }
-
-        EndpointApiResult *EndpointApiResult_Err(uint16_t *err) {
-            EndpointApiResult *r = malloc(sizeof(EndpointApiResult));
-            r->success = 0;
-            r->ok = ((void*)0);
-            r->err = err;
-
-            return r;
-        }
+      EndpointApiResult EndpointApiResult_Err(uint16_t err) {
+          return (EndpointApiResult){.success = false, .ok = 0, .err = err};
+      }
     #+END_SRC
 
 
 That's the way how =C= deals with generic:)
-
-
-For more details, open ~src/utils/result.h~ and ~src/result_demo.c~ to have a look and run the following command to give it a try:
-
-#+BEGIN_SRC bash
-  make c_demo_result && ./c_demo_result
-
-  # >>> [ Result type demo ]
-  # Result {
-  #         success: true
-  #         ok: Got something back:)
-  #         err: NULL
-  # }
-  # 
-  # Result {
-  #         success: false
-  #         ok: NULL
-  #         ok: 404
-  # }
-#+END_SRC
-
-
