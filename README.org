@@ -17,6 +17,7 @@
 ** [[file:chapters/use-lldb-to-debug.org][Use lldb to debug your C program]]
 ** [[file:chapters/cmake.org][cmake]]
 ** [[file:chapters/clang-format.org][clang-format]]
+** [[file:chapters/unit-test.org][Unit test]]
 ** [[file:chapters/multithreading.org][Multi-threading]]
 *** [[file:chapters/create-new-thread.org][Create new thread and wait for it to finish]]
 *** [[file:chapters/mutexes.org][Data race - Mutex]]

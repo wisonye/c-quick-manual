@@ -1,0 +1,361 @@
+* Unit test
+
+** Install =Unit= test framework
+
+#+BEGIN_SRC bash
+  cd ~/temp
+  git clone --depth=1 https://github.com/ThrowTheSwitch/Unity.git
+  cd Unity
+  mkdir build && cd build
+
+  #
+  # `-DCMAKE_C_FLAGS="-DUNITY_INCLUDE_DOUBLE"`: Compile Unity to support double!!!
+  #
+  # `-DCMAKE_INSTALL_INCLUDEDIR` and `-DCMAKE_INSTALL_LIBDIR`: install path
+  #
+  cmake .. \
+      -DCMAKE_C_FLAGS="-DUNITY_INCLUDE_DOUBLE" \
+      -DCMAKE_INSTALL_INCLUDEDIR=~/my-installed/include \
+      -DCMAKE_INSTALL_LIBDIR=~/my-installed/lib
+
+  #
+  # Compile and insteall
+  #
+  make install
+  # [ 50%] Building C object CMakeFiles/unity.dir/src/unity.c.o
+  # [100%] Linking C static library libunity.a
+  # [100%] Built target unity
+  # Install the project...
+  # -- Install configuration: ""
+  # -- Installing: /home/wison/my-installed/lib/libunity.a
+  # -- Installing: /home/wison/my-installed/include/unity/unity.h
+  # -- Installing: /home/wison/my-installed/include/unity/unity_internals.h
+  # -- Installing: /home/wison/my-installed/lib/cmake/unity/unityTargets.cmake
+  # -- Installing: /home/wison/my-installed/lib/cmake/unity/unityTargets-noconfig.cmake
+  # -- Installing: /home/wison/my-installed/lib/cmake/unity/unityConfig.cmake
+  # -- Installing: /home/wison/my-installed/lib/cmake/unity/unityConfigVersion.cmake
+#+END_SRC
+
+
+** Add =Unity= lib to your =cmake= (if you use =cmake=)
+
+#+BEGIN_SRC cmake
+  #
+  # Extra include path for `unity` test framework
+  #
+  option(USE_CUSTOM_UNITY_INSTALL_PATH "Enable custom 'unity' install path" OFF)
+
+  if (USE_CUSTOM_UNITY_INSTALL_PATH)
+          set(MY_UNITY_INSTALL_INCLUDE_PATH ${MY_UNITY_INSTALL_INCLUDE_PATH})
+          set(MY_UNITY_INSTALL_LIB_PATH ${MY_UNITY_INSTALL_LIB_PATH})
+
+          include_directories("${MY_UNITY_INSTALL_INCLUDE_PATH}")
+          link_directories("${MY_UNITY_INSTALL_LIB_PATH}")
+
+          message(">>>")
+      message(">>> [ Use custom Unity install path ].")
+      message(">>> \tMY_UNITY_INSTALL_INCLUDE_PATH: ${MY_UNITY_INSTALL_INCLUDE_PATH}")
+      message(">>> \tMY_UNITY_INSTALL_LIB_PATH: ${MY_UNITY_INSTALL_LIB_PATH}")
+          message(">>>\n")
+  endif()
+
+  #
+  # Link your executable to `libunity`
+  #
+  target_link_libraries("${PROJECT_NAME}" unity)
+#+END_SRC
+
+
+Example to run =cmake=:
+
+If you install =Unity= to your own path, then you should use =-DUSE_CUSTOM_UNITY_INSTALL_PATH=true= and provide =-DMY_UNITY_INSTALL_INCLUDE_PATH= and =-DMY_UNITY_INSTALL_LIB_PATH= env vars!!!
+
+#+BEGIN_SRC bash
+  mkdir build && cd build
+  cmake -S ../ \
+        -DUSE_CUSTOM_UNITY_INSTALL_PATH=true \
+        -DMY_UNITY_INSTALL_INCLUDE_PATH=${YOUR_INSTALL_PREFIX}/include/unity \
+        -DMY_UNITY_INSTALL_LIB_PATH=${YOUR_INSTALL_PREFIX}/lib
+#+END_SRC
+
+
+** Write unit test
+
+*** Unit test header to export all test functions
+
+For example =string_test.h=:
+
+#+BEGIN_SRC c
+  #ifndef __TEST_STRING_H__
+  #define __TEST_STRING_H__
+
+  void test_string_init(void);
+  void test_string_init_with_capacity(void);
+
+  #endif
+#+END_SRC
+
+
+*** Unit test implementation for all related test functions
+
+For example =string_test.c=:
+
+#+BEGIN_SRC c
+  #include "./string_test.h"
+
+  #include <string.h>
+
+  //
+  // Include `unity` header
+  //
+  #include <unity.h>
+
+  #include "../../utils/heap_string.h"
+
+  void test_string_init(void) {
+      struct HeapString str;
+      HS_init(&str);
+      TEST_ASSERT_EQUAL_UINT(HS_length(&str), 0);
+      TEST_ASSERT_EQUAL_UINT(HS_capacity(&str), 0);
+      TEST_ASSERT_NULL(HS_as_str(&str));
+
+      HS_push_str(&str, "12345");
+      TEST_ASSERT_EQUAL_UINT(HS_length(&str), 5);
+      TEST_ASSERT_EQUAL_UINT(HS_capacity(&str), HS_length(&str) + 1);
+      TEST_ASSERT_EQUAL_STRING(HS_as_str(&str), "12345");
+      HS_free_buffer_only(&str);
+  }
+
+  void test_string_init_with_capacity(void) {
+      struct HeapString str;
+      HS_init_with_capacity(&str, 10);
+      TEST_ASSERT_EQUAL_UINT(HS_length(&str), 0);
+      TEST_ASSERT_EQUAL_UINT(HS_capacity(&str), 10);
+      TEST_ASSERT_NOT_NULL(HS_as_str(&str));
+
+      HS_push_str(&str, "12345");
+      TEST_ASSERT_EQUAL_UINT(HS_length(&str), 5);
+      TEST_ASSERT_EQUAL_UINT(HS_capacity(&str), 10);
+      TEST_ASSERT_EQUAL_STRING(HS_as_str(&str), "12345");
+
+      HS_push_str(&str, "ABCD");
+      TEST_ASSERT_EQUAL_UINT(HS_length(&str), strlen("12345ABCD"));
+      TEST_ASSERT_EQUAL_UINT(HS_capacity(&str), 10);
+      TEST_ASSERT_EQUAL_STRING(HS_as_str(&str), "12345ABCD");
+
+      // The next push should case realloc!!!
+      HS_push_str(&str, "qwerty");
+      TEST_ASSERT_EQUAL_UINT(HS_length(&str), strlen("12345ABCDqwerty"));
+      TEST_ASSERT_EQUAL_UINT(HS_capacity(&str), HS_length(&str) + 1);
+      TEST_ASSERT_EQUAL_STRING(HS_as_str(&str), "12345ABCDqwerty");
+
+      HS_free_buffer_only(&str);
+  }
+#+END_SRC
+
+
+*** =main.c= to run all test functions
+
+#+BEGIN_SRC c
+  //
+  // Include `unity` header
+  //
+  #include <unity.h>
+
+  //
+  // Include all your unit test headers
+  //
+  #include "./test/utils/string_test.h"
+
+  ///
+  /// This is run before EACH TEST
+  ///
+  void setUp(void) {
+      // printf("\n>>> [ setUp ] - run.");
+  }
+
+  ///
+  /// This is run after EACH TEST
+  ///
+  void tearDown(void) {
+      // printf("\n>>> [ tearDown ] - run.");
+  }
+
+  //
+  //
+  //
+  int main(void) {
+      UNITY_BEGIN();
+
+      //
+      // Run all unit test functions
+      //
+      RUN_TEST(test_string_init);
+      RUN_TEST(test_string_init_with_capacity);
+
+      UNITY_END();
+      return 0;
+  }
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  [100%] Linking C executable c-utils-unit-test
+  [100%] Built target c-utils-unit-test
+  /home/wison/c/c-utils/src/unit_test.c:43:test_string_init:PASS
+  /home/wison/c/c-utils/src/unit_test.c:44:test_string_init_with_capacity:PASS
+
+  -----------------------
+  2 Tests 0 Failures 0 Ignored
+  OK
+#+END_SRC
+
+
+** Unit test assertion functions
+
+You can find more detailed test macros here: https://github.com/ThrowTheSwitch/Unity.git
+
+*** Top level test without types
+
+#+BEGIN_SRC c
+  //
+  // Test for true result
+  //
+  TEST_ASSERT_TRUE(condition)
+  TEST_ASSERT(condition)
+
+  //
+  // Test for false result
+  //
+  TEST_ASSERT_FALSE(condition)
+  TEST_ASSERT_UNLESS(condition)
+
+  //
+  // Test for equal result
+  //
+  TEST_ASSERT_EQUAL(expected, actual) 
+#+END_SRC
+
+
+*** Test integers
+
+#+BEGIN_SRC c
+  TEST_ASSERT_EQUAL_INT(expected, actual)
+  TEST_ASSERT_EQUAL_UINT(expected, actual)
+#+END_SRC
+
+
+*** Test integers with particular types
+
+#+BEGIN_SRC c
+  TEST_ASSERT_EQUAL_INT8(expected, actual)
+  TEST_ASSERT_EQUAL_INT16(expected, actual)
+  TEST_ASSERT_EQUAL_INT32(expected, actual)
+  TEST_ASSERT_EQUAL_INT64(expected, actual)
+
+  TEST_ASSERT_EQUAL_UINT8(expected, actual)
+  TEST_ASSERT_EQUAL_UINT16(expected, actual)
+  TEST_ASSERT_EQUAL_UINT32(expected, actual)
+  TEST_ASSERT_EQUAL_UINT64(expected, actual)
+
+  TEST_ASSERT_EQUAL_HEX(expected, actual)
+  TEST_ASSERT_EQUAL_HEX8(expected, actual)
+  TEST_ASSERT_EQUAL_HEX16(expected, actual)
+  TEST_ASSERT_EQUAL_HEX32(expected, actual)
+  TEST_ASSERT_EQUAL_HEX64(expected, actual)
+#+END_SRC
+
+
+*** Test integer with range
+
+#+BEGIN_SRC c
+TEST_ASSERT_INT_WITHIN(delta, expected, actual)
+TEST_ASSERT_GREATER_THAN(threshold, actual)
+TEST_ASSERT_LESS_THAN(threshold, actual)
+#+END_SRC
+
+
+*** Test float/double
+
+You have 2 conditions to match before testing float/double:
+
+1. Before this works, you must pass the =-DUNITY_INCLUDE_DOUBLE= C flag when compiling =unity=, otherwise, the following assertion functions won't exist in =libunity.a=!!!
+
+2. For testing =double=, you have to have the following macros define in your unit test source code:
+
+   #+BEGIN_SRC c
+     #define UNITY_INCLUDE_DOUBLE
+     // #define UNITY_DOUBLE_PRECISION 0.00001f
+     #define UNITY_DOUBLE_PRECISION 1e-12f
+   #+END_SRC
+
+
+
+#+BEGIN_SRC c
+  TEST_ASSERT_FLOAT_WITHIN(delta, expected, actual)
+  TEST_ASSERT_DOUBLE_WITHIN(delta, expected, actual) 
+
+  TEST_ASSERT_FLOAT_NOT_WITHIN(delta, expected, actual)
+  TEST_ASSERT_DOUBLE_NOT_WITHIN(delta, expected, actual)
+
+  TEST_ASSERT_EQUAL_FLOAT(expected, actual)
+  TEST_ASSERT_EQUAL_DOUBLE(expected, actual)
+
+  TEST_ASSERT_NOT_EQUAL_FLOAT(expected, actual)
+  TEST_ASSERT_NOT_EQUAL_DOUBLE(expected, actual)
+
+  TEST_ASSERT_LESS_THAN_FLOAT(threshold, actual)
+  TEST_ASSERT_LESS_THAN_DOUBLE(threshold, actual)
+  TEST_ASSERT_GREATER_THAN_FLOAT(threshold, actual)
+  TEST_ASSERT_GREATER_THAN_DOUBLE(threshold, actual)
+#+END_SRC
+
+
+*** Test array
+
+You can append =_ARRAY= to any of these macros to make an array comparison of that type. Here you will need to care a bit more about the actual size of the value being checked. You will also specify an additional argument which is the number of elements to compare. For example:
+
+#+BEGIN_SRC c
+  TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, actual, elements)
+#+END_SRC
+
+
+Another array comparison option is to check that EVERY element of an array is equal to a single expected value. You do this by specifying the =EACH_EQUAL= macro. For example:
+
+#+BEGIN_SRC c
+  TEST_ASSERT_EACH_EQUAL_INT32(expected, actual, elements)
+#+END_SRC
+
+
+*** Test string
+
+#+BEGIN_SRC c
+  //
+  // Test for string equal result (with or without given error message)
+  //
+  TEST_ASSERT_EQUAL_STRING(expected, actual) 
+  TEST_ASSERT_EQUAL_STRING_MESSAGE(expected, actual, message)
+
+  //
+  // Test for string len equal result (with or without given error message)
+  //
+  TEST_ASSERT_EQUAL_STRING_LEN(expected, actual, len)
+  TEST_ASSERT_EQUAL_STRING_LEN_MESSAGE(expected, actual, len, message)
+#+END_SRC
+
+
+*** Test pointer
+
+#+BEGIN_SRC c
+  TEST_ASSERT_NULL(pointer) 
+  TEST_ASSERT_NOT_NULL(pointer)
+#+END_SRC
+
+
+*** Test memory block are equal or not
+
+#+BEGIN_SRC c
+  TEST_ASSERT_EQUAL_MEMORY(expected, actual, len) 
+#+END_SRC
+
