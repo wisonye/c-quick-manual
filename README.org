@@ -27,3 +27,6 @@
 *** [[file:chapters/how-to-generate-random-numbers.org][How to generate random numbers]]
 *** [[file:chapters/how-to-get-type-name-and-type-size.org][How to get type name and type size]]
 *** [[file:chapters/how-to-measure-execution-time.org][How to measure execution time]]
+*** [[file:chapters/how-to-read-env-var.org][How to read environment variable]]
+*** [[file:chapters/how-to-read-process-args.org][How to read process arguments]]
+

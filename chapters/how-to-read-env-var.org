@@ -1,0 +1,19 @@
+* How to read environment variable
+
+~getenv(var_name)~: Return =NULL= or =char *=
+
+#+BEGIN_SRC c
+  #include <stdlib.h>
+
+  int main(void) {
+      const char *home = getenv("HOME");
+      printf("\n>>> $HOME env exists: %s, value: %s",
+             home == NULL ? "No" : "Yes",
+             home);
+
+      const char *current_user = getenv("USER");
+      printf("\n>>> $USER env exists: %s, value: %s",
+             current_user == NULL ? "No" : "Yes",
+             current_user);
+  }
+#+END_SRC

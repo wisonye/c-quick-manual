@@ -1,0 +1,32 @@
+* How to read process arguments
+
+=int main(int arg_count, char **arg_values) {}=
+=int main(int arg_count, char *arg_values[]) {}=
+
+- =arg_count=: The number of arguments
+- =arg_values=: C string array, first argument is your program name
+
+
+#+BEGIN_SRC c
+  int main(int arg_count, char *arg_values[]) {
+  // int main(int arg_count, char **arg_values) {
+      printf("\n>>> Argument count: %d", arg_count);
+      for (int i = 0; i < arg_count; ++i) {
+          printf("\n>>> arg_values[%d]: %s", i, arg_values[i]);
+      }
+  }
+ 
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  ./temp_build/temp_test -- enable_log disable_tracking
+
+  # >>> Argument count: 4
+  # >>> arg_values[0]: ./temp_build/temp_test
+  # >>> arg_values[1]: --
+  # >>> arg_values[2]: enable_log
+  # >>> arg_values[3]: disable_tracking
+#+END_SRC
