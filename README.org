@@ -30,3 +30,4 @@
 *** [[file:chapters/how-to-read-env-var.org][How to read environment variable]]
 *** [[file:chapters/how-to-read-process-args.org][How to read process arguments]]
 *** [[file:chapters/how-to-execute-command.org][How to execute command]]
+*** [[file:chapters/how-to-do-simple-logging.org][How to do simple logging]]
