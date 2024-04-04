@@ -1,0 +1,144 @@
+* How to execute command
+
+#+BEGIN_SRC c
+  #include <stdio.h>
+
+  #include <sys/errno.h>
+
+  #ifdef __linux__
+      #include <wait.h>
+  #endif
+
+  #ifdef __FreeBSD__
+      #include <sys/wait.h>
+  #endif
+
+  ///
+  ///
+  ///
+  bool exec_command(const char *cmd, const char *args[]) {
+      char cmd_info[1024] = {0};
+      size_t index        = 0;
+      int bytes_written   = 0;
+      char *next_str      = (char *)args[index];
+      while (next_str != NULL) {
+          bytes_written += snprintf(cmd_info + bytes_written,
+                                    sizeof(cmd_info) - bytes_written,
+                                    "%s ",
+                                    next_str);
+
+          index++;
+          next_str = (char *)args[index];
+      }
+
+      printf("\n>>> [ exec_command ] - %s", cmd_info);
+      fflush(stdout);
+
+      //
+      // `execvp` replaces the current process image with a new process image,
+      // it means the current process is gone, that's why we need to `fork` a
+      // new child process and run `execvp` inside there and wait the child
+      // process to finish!!!
+      //
+      pid_t pid = fork();
+
+      if (pid < 0) {
+          fprintf(stderr,
+                  "\n>>> [ exec_command ] - Failed to fork child command "
+                  "proceww: '%s': %s",
+                  cmd_info,
+                  strerror(errno));
+      }
+
+      //
+      // I'm child process
+      //
+      if (pid == 0) {
+          // execvp(const char *file, char *const argv[]);
+          if (execvp(cmd, (char *const *)args) < 0) {
+              fprintf(stderr,
+                      "\n>>> [ exec_command ] - Fail to run child process ('%s') "
+                      "with "
+                      "error: %s",
+                      cmd_info,
+                      strerror(errno));
+          }
+      }
+      //
+      // I'm parent process, wait for the child process to finish
+      //
+      else {
+          fprintf(
+              stderr,
+              "\n>>> [ exec_command ] - Waiting for child process (pid: %d): %s",
+              pid,
+              cmd_info);
+          for (;;) {
+              int wstatus = 0;
+              if (waitpid(pid, &wstatus, 0) < 0) {
+                  fprintf(
+                      stderr,
+                      "\n>>> [ exec_command ] - Failed to wait for command (pid "
+                      "%d): %s",
+                      pid,
+                      strerror(errno));
+              }
+
+              if (WIFEXITED(wstatus)) {
+                  int exit_status = WEXITSTATUS(wstatus);
+                  if (exit_status != 0) {
+                      fprintf(stderr,
+                              "\n>>> [ exec_command ] - command process ('%s') "
+                              "exited "
+                              "with exit code %d",
+                              cmd_info,
+                              exit_status);
+                  }
+
+                  break;
+              }
+
+              if (WIFSIGNALED(wstatus)) {
+                  fprintf(stderr,
+                          "\n>>> [ exec_command ] - command process  ('%s') was "
+                          "terminated by %s",
+                          cmd_info,
+                          strsignal(WTERMSIG(wstatus)));
+              }
+          }
+
+          printf(
+              "\n>>> [ exec_command ] - Wait for child command process (pid: %d) "
+              "sucessfully: %s",
+              pid,
+              cmd_info);
+      }
+      return true;
+  }
+
+  ///
+  ///
+  ///
+  int main(void) {
+          const char *home = getenv("HOME");
+      const char *cc_cmd[] = {"ls", "-lht", home, NULL};
+      exec_command(cc_cmd[0], cc_cmd);
+
+      return 0;
+  } 
+#+END_SRC
+
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> [ exec_command ] - ls -lht /home/wison 
+  >>> [ exec_command ] - Waiting for child process (pid: 40938): ls -lht /home/wison total 121
+  -rwxr-xr-x   1 wison wison  737B Apr  4 11:21 c_development.sh
+  drwxr-xr-x   7 wison wison    7B Apr  3 17:52 c
+  drwxr-xr-x   9 wison wison   17B Apr  3 11:49 Downloads
+  drwxr-xr-x  11 wison wison   32B Mar 31 14:17 temp
+  drwxr-xr-x   8 wison wison    8B Mar 24 12:31 vm
+
+  >>> [ exec_command ] - Wait for child command process (pid: 40938) sucessfully: ls -lht /home/wison 
+#+END_SRC
