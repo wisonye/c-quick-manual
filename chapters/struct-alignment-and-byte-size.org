@@ -44,7 +44,7 @@ That calls =self-aligned=.
   } Value;
 #+END_SRC
 
-The =Value= struct has a 4B =natural alignment= as =c= field is the larget field.
+The =Value= struct has a 4B =natural alignment= as =c= field is the largest field.
 
 How paddings work in this case?
 
@@ -114,7 +114,7 @@ Output:
   } Value;
 #+END_SRC
 
-The =Value= struct has a 4B =natural alignment= as =b= field is the larget field.
+The =Value= struct has a 4B =natural alignment= as =b= field is the largest field.
 
 How paddings work in this case?
 
@@ -186,7 +186,7 @@ Output:
   } Value;
 #+END_SRC
 
-The =Value= struct has a 8 bytes =natural alignment= as =c= field is the larget field.
+The =Value= struct has a 8 bytes =natural alignment= as =c= field is the largest field.
 
 How paddings work in this case?
 
@@ -252,3 +252,119 @@ Output:
   (D) [ Memory ] > print_memory_block - ------------------------------------------------
 #+END_SRC
 
+
+
+** Nested inner struct example and explanation
+
+#+BEGIN_SRC c
+  typedef struct String {
+      const char *data;  // 8B
+      uint32_t len;      // 4B,
+                         // 4B padding
+  } String;
+
+  typedef struct {
+      uint8_t a;   // 1B
+      uint32_t b;  // 4B
+      uint8_t c;   // 1B
+      String d;    // 16B
+  } Value;
+#+END_SRC
+
+The =Value= struct has a 8 bytes =natural alignment= as the =data= field (in the inner struct) is the largest field.
+
+How paddings work in this case?
+
+
+> For the =String= inner struct:
+
+- =data= is 8B aligend, the next =len= is 4B aligned and =len's= offset has to be divisible by 4, so no padding is needed.
+
+- =len= is 4B aligned and it's the last field, based on the rule no.1 (natural alignment), the total struct size including all paddings is 12B which can't be divisible by 8 (natural alignment size). And the next 8-divisible number (from 12) is 16. That's why, a (16 - 12)B padding is needed here.
+
+
+> For the =Value= struct:
+
+- =a= is 1B aligned, the next =b= is 4B algined and =b's= offset has to be divisible by 4 (all fields ahead occupy 1B), that's why a (4-1)B padding is needed here.
+
+- =b= is 4B aligned, the next =c= is 1B algined, no padding is needed.
+
+- =c= is 1B aligned, the next =String.data= is 8B algined, =String.data's= offset has to be divisible by 8 (all fields ahead occupy 9B) which can't be divisible by 8. And the next 8-divisible number (from 9) is 16. That's why, a (16 - 9)B padding is needed here.
+
+- =d= occupy 16B and it's the last field, based on the rule no.1 (natural alignment), the total struct size including all paddings is 32B which can be divisible by 8 (natural alignment size). No trailing padding is needed here.
+
+
+That's why =Value= is 32 bytes and should look like:
+
+#+BEGIN_SRC c
+  typedef struct String {
+      const char *data;  // 8B
+      uint32_t len;      // 4B,
+                         // 4B padding
+  } String;
+
+  typedef struct {
+      uint8_t a;   // 1B
+                   // 3B
+      uint32_t b;  // 4B
+      uint8_t c;   // 1B
+                   // 7B
+      String d;    // 16B
+  } Value;
+#+END_SRC
+
+
+Let's run the following code to print out the memory to confirm:
+
+#+BEGIN_SRC c
+  #include <memory.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  typedef struct String {
+      const char *data;  // 8B
+      uint32_t len;      // 4B,
+                         // 4B padding
+  } String;
+
+  typedef struct {
+      uint8_t a;   // 1B
+                   // 3B
+      uint32_t b;  // 4B
+      uint8_t c;   // 1B
+                   // 7B
+      String d;    // 16B
+  } Value;
+
+  int main(void) {
+      printf("\n>>> size of Value: %lu", sizeof(Value));
+
+      Value v = (Value){
+          .a = 0xAA,
+          .b = 0x11223344,
+          .c = 0xCC,
+          .d =
+              (String){
+                  .data = (void *)0x1A2A3A4A5A6A7A8A,
+                  .len  = 0xB1B2B3B4,
+              },
+      };
+
+      PRINT_MEMORY_BLOCK(Value, v);
+  }
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+   >>> size of Value: 32
+  (D) [ Memory ] > print_memory_block - [ Value v, size: 32 ]
+  (D) [ Memory ] > print_memory_block - ----------------------------------------------------------------
+  (D) [ Memory ] > print_memory_block - AA00000044332211CC000000000000008A7A6A5A4A3A2A1AB4B3B2B100000000
+  (D) [ Memory ] > print_memory_block - ---------------------------------------------------------------- 
+#+END_SRC
+
+
+** How to optimize the struct size
+
+Try to reorder fields from bigger size to smaller:)
