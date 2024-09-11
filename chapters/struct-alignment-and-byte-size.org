@@ -1,0 +1,254 @@
+* Struct alignment and byte size
+
+Here is the original article: [[http://www.catb.org/esr/structure-packing/][The Lost Art of Structure Packing]]
+
+Below, it's my summaries from that article.
+
+Basic C datatypes on the given =ISA (Instruction Set Architecture)= (e.g. Intel, ARM, RISC-V, etc) doesn’t normally start at arbitrary byte addresses in memory. In fact, each type except =char= has an =alignment requirement=:
+
+- =Chars= can start on any byte address
+
+- =Numeric= (Signed or unsigned makes no difference)
+    - 2-byte shorts must start on an even address
+    - 4-byte ints or floats must start on an address divisible by 4
+    - 8-byte longs or doubles must start on an address divisible by 8.
+
+- =Pointer= must start an address divisible by 8 (64bit CPU) or by 4 (on 32bit CPU)
+
+That calls =self-aligned=.
+
+=Self-alignment= makes access faster because it costs single-instruction fetches and puts of the typed data. Without alignment constraints, it costs 2 or more instructions to read from or write to memory.
+
+** Natural alignment and padding rules
+
+1. The =natural alignment= (byte) size is the largest field's (byte) size (includes all fields in the nested inner struct). The entire struct in memory has to be naturally aligned which means its memory should be cut as N chunk of natural alignment (byte) size!!!
+
+   That's why an extra =trailing padding= has to be added next to the last field of the struct if the struct byte size isn't divisible by the =natural aligment= size of the struct!!!
+
+   This make sure the given =Array Of Structure= is laid out in memory in an efficient way and the CPU can read each element and it's field by the minimal CPU instruction!!!
+
+   This rule determines how much =trailing padding= is needed next to the last field.
+
+2. Each field's offset address is self-aligned. This rule determines how much padding is needed for the previous field.
+
+
+** Examples and explanations
+
+*** Example 1
+
+#+BEGIN_SRC c
+  typedef struct {
+      uint8_t a;  // 1B
+      uint8_t b;  // 1B
+      uint32_t c; // 4B
+  } Value;
+#+END_SRC
+
+The =Value= struct has a 4B =natural alignment= as =c= field is the larget field.
+
+How paddings work in this case?
+
+- =a= is 1B aligned, the next =b= also 1B aliged and =b's= offset can be any address, no padding is needed.
+
+- =b= is 1B aligned, the next =c= is 4B aligned and =c's= offset has to be divisible by 4 (all fields ahead occupy 2 bytes), that's why a 2B padding is needed here.
+
+- =c= is 4B aligned and it's the last field, based on the rule no.1 (natural alignment), the total struct size including all paddings is 8B which can be divisible by 4 (natural alignment size). So, no padding is needed here.
+
+That's why =Value= is 8B and should look like:
+
+#+BEGIN_SRC c
+  typedef struct {
+      uint8_t a;  // 1B
+      uint8_t b;  // 1B
+                  // 2B padding
+      uint32_t c; // 4B
+  } Value;
+#+END_SRC
+
+
+Let's run the following code to print out the memory to confirm:
+
+#+BEGIN_SRC c
+  #include <memory.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  typedef struct {
+      uint8_t a;   // 1B
+      uint8_t b;   // 1B
+                   // 2B padding
+      uint32_t c;  // 4B
+  } Value;
+
+  int main(void) {
+      printf("\n>>> size of Value: %lu", sizeof(Value));
+
+      Value v = (Value){
+          .a = 0xAA,
+          .b = 0xBB,
+          .c = 0x11223344,
+      };
+
+      PRINT_MEMORY_BLOCK(Value, v);
+  }
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+   >>> size of Value: 8
+  (D) [ Memory ] > print_memory_block - [ Value v, size: 8 ]
+  (D) [ Memory ] > print_memory_block - ----------------
+  (D) [ Memory ] > print_memory_block - AABB000044332211
+  (D) [ Memory ] > print_memory_block - ---------------- 
+#+END_SRC
+
+
+*** Example 2
+
+#+BEGIN_SRC c
+  typedef struct {
+      uint8_t a;  // 1B
+      uint32_t b; // 4B
+      uint8_t c;  // 1B
+  } Value;
+#+END_SRC
+
+The =Value= struct has a 4B =natural alignment= as =b= field is the larget field.
+
+How paddings work in this case?
+
+- =a= is 1B aligned, the next =b= is 4B aligned and =b's= offset has to be divisible by 4 (all fields ahead occupy 1 bytes), that's why a 3B padding is needed here.
+
+- =b= is 4B aligned, the next =c= is 1B aligend, no padding is needed.
+
+- =c= is 1B aligned and it's the last field, based on the rule no.1 (natural alignment), the total struct size including all paddings is 9B which can't be divisible by 4 (natural alignment size). And the next 4-divisible number (from 9) is 12. That's why, a (12 - 9)B padding is needed here.
+
+That's why =Value= is 12 bytes and should look like:
+
+#+BEGIN_SRC c
+  typedef struct {
+      uint8_t a;  // 1B
+                  // 3B padding
+      uint32_t b; // 4B
+      uint8_t c;  // 1B
+                  // 3B trailing padding
+  } Value;
+#+END_SRC
+
+Let's run the following code to print out the memory to confirm:
+
+#+BEGIN_SRC c
+  #include <memory.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  typedef struct {
+      uint8_t a;   // 1B
+                   // 3B padding
+      uint32_t b;  // 4B
+      uint8_t c;   // 1B
+                   // 3B trailing padding
+  } Value;
+
+  int main(void) {
+      printf("\n>>> size of Value: %lu", sizeof(Value));
+
+      Value v = (Value){
+          .a = 0xAA,
+          .b = 0x11223344,
+          .c = 0xCC,
+      };
+
+      PRINT_MEMORY_BLOCK(Value, v);
+  }
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+   >>> size of Value: 12
+  (D) [ Memory ] > print_memory_block - [ Value v, size: 12 ]
+  (D) [ Memory ] > print_memory_block - ------------------------
+  (D) [ Memory ] > print_memory_block - AA00000044332211CC000000
+  (D) [ Memory ] > print_memory_block - ------------------------ 
+#+END_SRC
+
+
+*** Example 3
+
+#+BEGIN_SRC c
+  typedef struct {
+      uint8_t a;  // 1B
+      uint8_t b;  // 1B
+      char *c;    // 8B
+      uint8_t d;  // 1B
+  } Value;
+#+END_SRC
+
+The =Value= struct has a 8 bytes =natural alignment= as =c= field is the larget field.
+
+How paddings work in this case?
+
+- =a= is 1B aligned, the next =b= is 1B aligned, no padding is needed here.
+
+- =b= is 1B aligned, the next =c= is 8B aligned and =c's= offset has to be divisible by 8 (all fields ahead occupy 2 bytes), that's why a 6B padding is needed here.
+
+- =c= is 8B aligned, the next =d= is 1B aligend, no padding is needed.
+
+- =d= is 1B aligned and it's the last field, based on the rule no.1 (natural alignment), the total struct size including all paddings is 17B which can't be divisible by 8 (natural alignment size). And the next 8-divisible number (from 17) is 24. That's why, a (24 - 17)B padding is needed here.
+
+That's why =Value= is 24 bytes and should look like:
+
+#+BEGIN_SRC c
+  typedef struct {
+      uint8_t a;  // 1B
+      uint8_t b;  // 1B
+                  // 6B padding
+      char *c;    // 8B
+      uint8_t d;  // 1B
+                  // 7B trailing padding
+  } Value;
+#+END_SRC
+
+
+Let's run the following code to print out the memory to confirm:
+
+#+BEGIN_SRC c
+  #include <memory.h>
+  #include <stdint.h>
+  #include <stdio.h>
+
+  typedef struct {
+      uint8_t a;  // 1B
+      uint8_t b;  // 1B
+                  // 6B padding
+      char *c;    // 8B
+      uint8_t d;  // 1B
+                  // 7B trailing padding
+  } Value;
+
+  int main(void) {
+      printf("\n>>> size of Value: %lu", sizeof(Value));
+
+      Value v = (Value){
+          .a = 0xAA,
+          .b = 0xBB,
+          .c = (void *)0x1122334455667788,
+          .d = 0xDD,
+      };
+
+      PRINT_MEMORY_BLOCK(Value, v);
+  }
+#+END_SRC
+
+Output:
+
+#+BEGIN_SRC bash
+  >>> size of Value: 24size of v: 24
+  (D) [ Memory ] > print_memory_block - [ Value v, size: 24 ]
+  (D) [ Memory ] > print_memory_block - ------------------------------------------------
+  (D) [ Memory ] > print_memory_block - AABB0000000000008877665544332211DD00000000000000
+  (D) [ Memory ] > print_memory_block - ------------------------------------------------
+#+END_SRC
+

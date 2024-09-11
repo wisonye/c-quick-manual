@@ -1,6 +1,7 @@
 * C Quick Manual
 
 ** [[file:chapters/data_type.org][Data type]]
+** [[file:chapters/struct-alignment-and-byte-size.org][Struct alignment and byte size]]
 ** Pointer
 *** [[file:chapters/what-is-pointer-and-how-it-works.org][What is a pointer and how it works]]
 *** [[file:chapters/pointer-arithmetic.org][Pointer arithmetic]]
